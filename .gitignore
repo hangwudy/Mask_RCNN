@@ -7,6 +7,7 @@ logs/
 results/
 temp/
 test/
+detected_images/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
