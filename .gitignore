@@ -8,6 +8,7 @@ results/
 temp/
 test/
 detected_images/
+transferlearning/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
