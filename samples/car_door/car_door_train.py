@@ -216,11 +216,9 @@ for image_id in image_ids:
     visualize.display_top_masks(image, mask, class_ids, dataset.class_names)
 
 
+# In[21]:
 # # Create the Training Model and Train
 # This code is largely borrowed from the train_shapes.ipynb notebook.
-
-# In[21]:
-
 
 # Create model in training mode
 model = modellib.MaskRCNN(mode="training", config=config,
