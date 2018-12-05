@@ -49,9 +49,9 @@ def load_data():
     imgs_car_door = {'car_door': [], }
     latitude_car_door = []    
     longitude_car_door = []
-
+    counter = 0
     for w in imgs_car_door.keys():
-        image_paths = load_image.loadim('/home/hangwu/Workspace/Car_Door')
+        image_paths = load_image.loadim('/home/hangwu/Workspace/car_door_half')
         for image_path in image_paths:
             resized_img = load_img(image_path)
             image_name = image_path.split(os.path.sep)[-1]
@@ -60,6 +60,9 @@ def load_data():
             imgs_car_door[w].append(resized_img)
             latitude_car_door.append(la_cd)
             longitude_car_door.append(lo_cd)
+            if counter % 100 == 0:
+                print("loading {:.2f}%".format(counter/len(image_paths)*100))
+            counter += 1
 
     return imgs_car_door['car_door'], latitude_car_door, longitude_car_door
 
@@ -236,5 +239,5 @@ if __name__ == '__main__':
     #     # print(image_name)
     #     get_car_door_pose_from_filename(image_name)
 
-    # train()
-    eval()
+    train()
+    # eval()
