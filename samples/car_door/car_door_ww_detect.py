@@ -251,7 +251,7 @@ model = modellib.MaskRCNN(mode="inference",
 # model_path = os.path.join(ROOT_DIR, ".h5 file name here")
 
 # model_path = model.find_last()
-model_path = '/home/hangwu/Mask_RCNN/logs/car_door20181029T1141/mask_rcnn_car_door_0008.h5'
+model_path = '/home/hangwu/Mask_RCNN/logs/car_door20181030T1413/mask_rcnn_car_door_0008.h5'
 
 # Load trained weights (fill in path to trained weights here)
 assert model_path != "", "Provide path to trained weights"
