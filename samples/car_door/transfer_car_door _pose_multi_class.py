@@ -51,7 +51,7 @@ def load_data():
     longitude_car_door = []
 
     for w in imgs_car_door.keys():
-        image_paths = load_image.loadim('/home/hangwu/CyMePro/data/car_door')
+        image_paths = load_image.loadim('/home/hangwu/Workspace/Car_Door')
         for image_path in image_paths:
             resized_img = load_img(image_path)
             image_name = image_path.split(os.path.sep)[-1]
@@ -61,7 +61,7 @@ def load_data():
             latitude_car_door.append(la_cd)
             longitude_car_door.append(lo_cd)
 
-    return imgs_car_door['car_door'], longitude_car_door
+    return imgs_car_door['car_door'], latitude_car_door, longitude_car_door
 
 
 class Vgg16:
@@ -75,7 +75,9 @@ class Vgg16:
             print('Please download VGG16 parameters')
 
         self.tfx = tf.placeholder(tf.float32, [None, 224, 224, 3])
-        self.tfy = tf.placeholder(tf.float32, [None, 1])
+        # self.tfy = tf.placeholder(tf.float32, [None, 1])
+        self.tfy_1 = tf.placeholder(tf.float32, [None, 1])
+        self.tfy_2 = tf.placeholder(tf.float32, [None, 1])
 
         # Convert RGB to BGR
         red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=self.tfx * 255.0)
@@ -113,16 +115,29 @@ class Vgg16:
         # reconstruct your own fc layers serve for your own purpose
         # from now on
 
+        # self.flatten = tf.reshape(pool5, [-1, 7*7*512])
+        # self.fc6 = tf.layers.dense(self.flatten, 256, tf.nn.relu, name='fc6')
+        # self.out = tf.layers.dense(self.fc6, 1, name='out')
+
+        # for latitude
         self.flatten = tf.reshape(pool5, [-1, 7*7*512])
-        self.fc6 = tf.layers.dense(self.flatten, 256, tf.nn.relu, name='fc6')
-        self.out = tf.layers.dense(self.fc6, 1, name='out')
+        self.fc6_1 = tf.layers.dense(self.flatten, 256, tf.nn.relu, name='fc6_1')
+        self.out_1 = tf.layers.dense(self.fc6_1, 1, name='out_1')
+
+        # for longitude
+        self.flatten = tf.reshape(pool5, [-1, 7*7*512])
+        self.fc6_2 = tf.layers.dense(self.flatten, 256, tf.nn.relu, name='fc6_2')
+        self.out_2 = tf.layers.dense(self.fc6_2, 1, name='out_2')
 
         self.sess = tf.Session()
         if restore_from:
             saver = tf.train.Saver()
             saver.restore(self.sess, restore_from)
         else:   # training graph
-            self.loss = tf.losses.mean_squared_error(labels=self.tfy, predictions=self.out)
+            # self.loss = tf.losses.mean_squared_error(labels=self.tfy, predictions=self.out)
+            self.loss_1 = tf.losses.mean_squared_error(labels=self.tfy_1, predictions=self.out_1)
+            self.loss_2 = tf.losses.mean_squared_error(labels=self.tfy_2, predictions=self.out_2)
+            self.loss = 0.5*self.loss_1 + 0.5*self.loss_2
             self.train_op = tf.train.AdamOptimizer(0.001).minimize(self.loss)
             self.sess.run(tf.global_variables_initializer())
 
@@ -135,37 +150,45 @@ class Vgg16:
             lout = tf.nn.relu(tf.nn.bias_add(conv, self.data_dict[name][1]))
             return lout
 
-    def train(self, x, y):
-        loss, _ = self.sess.run([self.loss, self.train_op], {self.tfx: x, self.tfy: y})
+    def train(self, x, y_1, y_2):
+        loss, _ = self.sess.run([self.loss, self.train_op], {self.tfx: x, self.tfy_1: y_1, self.tfy_2: y_2})
         return loss
 
     def predict(self, paths):
         fig, axs = plt.subplots(1, 4)
         for i, path in enumerate(paths):
             x = load_img(path)
-            longitude = self.sess.run(self.out, {self.tfx: x})
+            latitude = self.sess.run(self.out_1, {self.tfx: x})
+            longitude = self.sess.run(self.out_2, {self.tfx: x})
             img_name = path.split(os.path.sep)[-1]
             axs[i].imshow(x[0])
-            axs[i].set_title('Longitude: %d \nName: %s' % (longitude, img_name))
+            axs[i].set_title('Latitude: %d \nLongitude: %d \nName: %s' % (latitude, longitude, img_name))
             axs[i].set_xticks(()); axs[i].set_yticks(())
         # plt.ion()
         plt.show()
 
-    def save(self, path='/home/hangwu/Mask_RCNN/logs/car_door_pose/car_door_pose'):
+    def save(self, path='/home/hangwu/Mask_RCNN/logs/door_pose_x_y/car_door_pose'):
         saver = tf.train.Saver()
         saver.save(self.sess, path, write_meta_graph=False)
 
 
 def train():
     # tigers_x, cats_x, tigers_y, cats_y = load_data()
-    car_door_x, car_door_y = load_data()
+    car_door_x, car_door_y_1, car_door_y_2 = load_data()
 
     xs = np.concatenate(car_door_x, axis=0) # np.concatenate(tigers_x + cats_x, axis=0)
-    ys = np.asarray(car_door_y) # np.concatenate((tigers_y, cats_y), axis=0)
-    ys = ys.reshape(len(ys), 1)
+
+    # latitude
+    ys_1 = np.asarray(car_door_y_1)
+    ys_1 = ys_1.reshape(len(ys_1), 1)
     # print('=========================================================')
     # print(ys.shape)
     # print('=========================================================')
+
+    # longitude
+    ys_2 = np.asarray(car_door_y_2)
+    ys_2 = ys_2.reshape(len(ys_2), 1)
+
 
     vgg = Vgg16(vgg16_npy_path='/home/hangwu/Mask_RCNN/transferlearning/for_transfer_learning/vgg16.npy')
     print('Net built')
@@ -174,15 +197,15 @@ def train():
         # print('=========================================================')
         # print(xs[b_idx], ys[b_idx])
         # print('=========================================================')
-        train_loss = vgg.train(xs[b_idx], ys[b_idx])
+        train_loss = vgg.train(xs[b_idx], ys_1[b_idx], ys_2[b_idx])
         print(i, 'train loss: ', train_loss)
 
-    vgg.save('/home/hangwu/Mask_RCNN/logs/car_door_pose/car_door_pose')      # save learned fc layers
+    vgg.save('/home/hangwu/Mask_RCNN/logs/door_pose_x_y/car_door_pose')      # save learned fc layers
 
 
 def eval():
     vgg = Vgg16(vgg16_npy_path='/home/hangwu/Mask_RCNN/transferlearning/for_transfer_learning/vgg16.npy',
-                restore_from='/home/hangwu/Mask_RCNN/logs/car_door_pose/car_door_pose')
+                restore_from='/home/hangwu/Mask_RCNN/logs/door_pose_x_y/car_door_pose')
 
     imgs = {'car_door': [], }
     for k in imgs.keys():
