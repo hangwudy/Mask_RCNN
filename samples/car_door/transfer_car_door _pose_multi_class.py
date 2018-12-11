@@ -1,6 +1,8 @@
 """
 
 Car Door Orientation
+@author: Hang Wu
+@date: 2018.12.05
 
 """
 
@@ -195,13 +197,15 @@ def train():
 
     vgg = Vgg16(vgg16_npy_path='/home/hangwu/Mask_RCNN/transferlearning/for_transfer_learning/vgg16.npy')
     print('Net built')
+
     for i in range(100000):
         b_idx = np.random.randint(0, len(xs), 6)
         # print('=========================================================')
         # print(xs[b_idx], ys[b_idx])
         # print('=========================================================')
         train_loss = vgg.train(xs[b_idx], ys_1[b_idx], ys_2[b_idx])
-        print(i, 'train loss: ', train_loss)
+        if i%100 == 0:
+            print(i, 'train loss: ', train_loss)
 
     vgg.save('/home/hangwu/Mask_RCNN/logs/door_pose_x_y/car_door_pose')      # save learned fc layers
 
@@ -239,5 +243,5 @@ if __name__ == '__main__':
     #     # print(image_name)
     #     get_car_door_pose_from_filename(image_name)
 
-    train()
-    # eval()
+    # train()
+    eval()

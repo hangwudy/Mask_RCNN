@@ -1,7 +1,9 @@
 # coding: utf-8
 # @author: Hang Wu
+# @date: 2018.12.11
 # Car Door Mask Detection
 
+# Combination of mask rcnn and pose net
 
 
 # In[1]:
@@ -11,6 +13,7 @@ import json
 import numpy as np
 import time
 import skimage.io
+import re
 from PIL import Image, ImageDraw
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
 ROOT_DIR = '/home/hangwu/Mask_RCNN'
@@ -18,7 +21,7 @@ sys.path.append(ROOT_DIR)
 from mrcnn.config import Config
 import mrcnn.utils as utils
 from mrcnn import visualize
-import mrcnn.model as modellib
+import mrcnn.model_new as modellib
 
 
 # ## Set up logging and pre-trained model paths
@@ -181,9 +184,9 @@ class CarPartsDataset(utils.Dataset):
         for annotation in annotations:
             class_id = annotation['category_id']
             mask = Image.new('1', (image_info['width'], image_info['height']))
-            # mask_draw = ImageDraw.ImageDraw(mask, '1')
+            mask_draw = ImageDraw.ImageDraw(mask, '1')
             for segmentation in annotation['segmentation']:
-                # mask_draw.polygon(segmentation, fill=1)
+                mask_draw.polygon(segmentation, fill=1)
                 bool_array = np.array(mask) > 0
                 instance_masks.append(bool_array)
                 class_ids.append(class_id)
@@ -204,6 +207,29 @@ class CarPartsDataset(utils.Dataset):
 #         print('mask origin: ', mask.shape)
 #         print('mask with window: ', mask_with_window.shape)
         return mask_with_window, class_ids  # mask, class_ids
+    
+    def load_pose(self, image_id):
+        """ 
+        Load instance poses for the given image.
+        Pose format: Latitude, Longitude
+        Args:
+            image_id: The id of the image to extract pose infomation
+        Returns:
+            poses: An array of shape [latitude, longitude] with
+                one mask per instance.
+            class_ids: a 1D array of class IDs of the instance masks.
+        """
+        image_info = self.image_info[image_id]
+        
+        image_name = image_info['path'].split(os.path.sep)[-1]
+        print("Test Pose, image name: {}".format(image_name))
+        match = re.match(r'([A-Za-z_]+)(_+)([0-9]+)(_+)([0-9])', image_name, re.I)
+        class_name = match.groups()[0]
+        latitude = match.groups()[2]
+        longitude = match.groups()[4]
+        print("latitude: {}".format(latitude))
+        print("longitude: {}".format(longitude))
+
 
 
 # # Create the Training and Validation Datasets
@@ -231,6 +257,9 @@ image_ids = np.random.choice(dataset.image_ids, 4)
 for image_id in image_ids:
     image = dataset.load_image(image_id)
     mask, class_ids = dataset.load_mask(image_id)
+    ##### Test pose >>>>
+    dataset.load_pose(image_id)
+    ##### Test pose <<<<
     visualize.display_top_masks(image, mask, class_ids, dataset.class_names)
 
 
