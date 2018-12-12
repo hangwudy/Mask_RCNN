@@ -20,8 +20,8 @@ ROOT_DIR = '/home/hangwu/Mask_RCNN'
 sys.path.append(ROOT_DIR) 
 from mrcnn.config import Config
 import mrcnn.utils as utils
-from mrcnn import visualize
-import mrcnn.model_new as modellib
+from mrcnn import visualize_fusion as visualize
+import mrcnn.model_fusion as modellib
 
 
 # ## Set up logging and pre-trained model paths

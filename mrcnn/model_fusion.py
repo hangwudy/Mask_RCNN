@@ -2,9 +2,9 @@
 Mask R-CNN
 The main Mask R-CNN model implementation.
 
-Copyright (c) 2017 Matterport, Inc.
-Licensed under the MIT License (see LICENSE for details)
-Written by Waleed Abdulla
+Model Fusion:
+Mask RCNN + PoseNet
+
 """
 
 import os
@@ -1122,6 +1122,45 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
     loss = tf.reduce_sum(loss) / tf.reduce_sum(pred_active)
     return loss
 
+##
+##
+# Latitude
+# TODO: update for pose latitude and longitude
+def mrcnn_pose_latitude_loss_graph(target_latitude, pred_latitude):
+    """Loss for the classifier head of Mask RCNN.
+
+    target_class_ids: [batch, num_rois]. Integer class IDs. Uses zero
+        padding to fill in the array.
+    pred_class_logits: [batch, num_rois, num_classes]
+    active_class_ids: [batch, num_classes]. Has a value of 1 for
+        classes that are in the dataset of the image, and 0
+        for classes that are not in the dataset.
+    """
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=target_latitude, logits=pred_latitude
+    )
+    
+    return loss
+##
+##
+# Longitude
+# TODO: update for pose latitude and longitude
+def mrcnn_pose_longitude_loss_graph(target_longitude, pred_longitude):
+    """Loss for the classifier head of Mask RCNN.
+
+    target_class_ids: [batch, num_rois]. Integer class IDs. Uses zero
+        padding to fill in the array.
+    pred_class_logits: [batch, num_rois, num_classes]
+    active_class_ids: [batch, num_classes]. Has a value of 1 for
+        classes that are in the dataset of the image, and 0
+        for classes that are not in the dataset.
+    """
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=target_longitude, logits=pred_longitude
+    )
+    return loss
+##
+##
 
 def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
     """Loss for Mask R-CNN bounding box refinement.
@@ -2032,6 +2071,10 @@ class MaskRCNN():
                 [target_bbox, target_class_ids, mrcnn_bbox])
             mask_loss = KL.Lambda(lambda x: mrcnn_mask_loss_graph(*x), name="mrcnn_mask_loss")(
                 [target_mask, target_class_ids, mrcnn_mask])
+            # TODO: pose loss
+
+
+
 
             # Model
             inputs = [input_image, input_image_meta,
