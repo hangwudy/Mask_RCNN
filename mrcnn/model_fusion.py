@@ -482,7 +482,8 @@ def overlaps_graph(boxes1, boxes2):
     return overlaps
 
 
-def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config):
+def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, 
+                            gt_latitude, gt_longitude, config):
     """Generates detection targets for one image. Subsamples proposals and
     generates target class IDs, bounding box deltas, and masks for each.
 
@@ -492,6 +493,8 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     gt_class_ids: [MAX_GT_INSTANCES] int class IDs
     gt_boxes: [MAX_GT_INSTANCES, (y1, x1, y2, x2)] in normalized coordinates.
     gt_masks: [height, width, MAX_GT_INSTANCES] of boolean type.
+    gt_latitude: [MAX_GT_INSTANCES] int latitude IDs
+    gt_longitude: [MAX_GT_INSTANCES] int longitude IDs
 
     Returns: Target ROIs and corresponding class IDs, bounding box shifts,
     and masks.
@@ -501,6 +504,9 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
             Class-specific bbox refinements.
     masks: [TRAIN_ROIS_PER_IMAGE, height, width). Masks cropped to bbox
            boundaries and resized to neural network output size.
+
+    pose_latitude: [TRAIN_ROIS_PER_IMAGE]. Integer latitude IDs. Zero padded.
+    pose_longitude: [TRAIN_ROIS_PER_IMAGE]. Integer longitude IDs. Zero padded.
 
     Note: Returned arrays might be zero padded if not enough target ROIs.
     """
@@ -526,10 +532,15 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     crowd_ix = tf.where(gt_class_ids < 0)[:, 0]
     non_crowd_ix = tf.where(gt_class_ids > 0)[:, 0]
     crowd_boxes = tf.gather(gt_boxes, crowd_ix)
-    crowd_masks = tf.gather(gt_masks, crowd_ix, axis=2)
+    # crowd_masks = tf.gather(gt_masks, crowd_ix, axis=2)
     gt_class_ids = tf.gather(gt_class_ids, non_crowd_ix)
     gt_boxes = tf.gather(gt_boxes, non_crowd_ix)
     gt_masks = tf.gather(gt_masks, non_crowd_ix, axis=2)
+
+    ### POSE
+    gt_latitude = tf.gather(gt_latitude, non_crowd_ix)
+    gt_longitude = tf.gather(gt_longitude, non_crowd_ix)
+    ###
 
     # Compute overlaps matrix [proposals, gt_boxes]
     overlaps = overlaps_graph(proposals, gt_boxes)
@@ -570,6 +581,12 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     )
     roi_gt_boxes = tf.gather(gt_boxes, roi_gt_box_assignment)
     roi_gt_class_ids = tf.gather(gt_class_ids, roi_gt_box_assignment)
+
+
+    ### POSE
+    roi_gt_latitude = tf.gather(gt_latitude, roi_gt_box_assignment)
+    roi_gt_longitude = tf.gather(gt_longitude, roi_gt_box_assignment)
+    ### POSE
 
     # Compute bbox refinement for positive ROIs
     deltas = utils.box_refinement_graph(positive_rois, roi_gt_boxes)
@@ -617,7 +634,13 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     deltas = tf.pad(deltas, [(0, N + P), (0, 0)])
     masks = tf.pad(masks, [[0, N + P], (0, 0), (0, 0)])
 
-    return rois, roi_gt_class_ids, deltas, masks
+
+    ### POSE
+    roi_gt_latitude = tf.pad(roi_gt_latitude, [(0, N + P)])
+    roi_gt_longitude = tf.pad(roi_gt_longitude, [(0, N + P)])
+    ### POSE
+
+    return rois, roi_gt_class_ids, deltas, masks, roi_gt_latitude, roi_gt_longitude
 
 
 class DetectionTargetLayer(KE.Layer):
@@ -656,14 +679,16 @@ class DetectionTargetLayer(KE.Layer):
         gt_class_ids = inputs[1]
         gt_boxes = inputs[2]
         gt_masks = inputs[3]
+        gt_latitude = inputs[4]
+        gt_longitude = inputs[5]
 
         # Slice the batch and run a graph for each slice
         # TODO: Rename target_bbox to target_deltas for clarity
-        names = ["rois", "target_class_ids", "target_bbox", "target_mask"]
+        names = ["rois", "target_class_ids", "target_bbox", "target_mask", "target_latitude", "target_longitude"]
         outputs = utils.batch_slice(
-            [proposals, gt_class_ids, gt_boxes, gt_masks],
-            lambda w, x, y, z: detection_targets_graph(
-                w, x, y, z, self.config),
+            [proposals, gt_class_ids, gt_boxes, gt_masks, gt_latitude, gt_longitude],
+            lambda u, v, w, x, y, z: detection_targets_graph(
+                u, v, w, x, y, z, self.config),
             self.config.IMAGES_PER_GPU, names=names)
         return outputs
 
@@ -673,7 +698,9 @@ class DetectionTargetLayer(KE.Layer):
             (None, 1),  # class_ids
             (None, self.config.TRAIN_ROIS_PER_IMAGE, 4),  # deltas
             (None, self.config.TRAIN_ROIS_PER_IMAGE, self.config.MASK_SHAPE[0],
-             self.config.MASK_SHAPE[1])  # masks
+             self.config.MASK_SHAPE[1]),  # masks
+            (None, 1),  # pose_latitude
+            (None, 1)   # pose_longitude
         ]
 
     def compute_mask(self, inputs, mask=None):
@@ -960,7 +987,7 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     mrcnn_pose_longitude = KL.TimeDistributed(KL.Dense(num_classes_longitude),
                                     name='mrcnn_pose_longitude')(shared)
 
-    return mrcnn_class_logits, mrcnn_probs, mrcnn_bbox
+    return mrcnn_class_logits, mrcnn_probs, mrcnn_bbox, mrcnn_pose_latitude, mrcnn_pose_longitude
 
 
 def build_fpn_mask_graph(rois, feature_maps, image_meta,
@@ -1136,6 +1163,9 @@ def mrcnn_pose_latitude_loss_graph(target_latitude, pred_latitude):
         classes that are in the dataset of the image, and 0
         for classes that are not in the dataset.
     """
+
+    target_latitude = tf.cast(target_latitude, 'int64')
+
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=target_latitude, logits=pred_latitude
     )
@@ -1155,9 +1185,13 @@ def mrcnn_pose_longitude_loss_graph(target_longitude, pred_longitude):
         classes that are in the dataset of the image, and 0
         for classes that are not in the dataset.
     """
+
+    target_longitude = tf.cast(target_longitude, 'int64')
+
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=target_longitude, logits=pred_longitude
     )
+
     return loss
 ##
 ##
@@ -2045,9 +2079,11 @@ class MaskRCNN():
 
             # Network Heads
             # TODO: verify that this handles zero padded ROIs
-            mrcnn_class_logits, mrcnn_class, mrcnn_bbox =\
+            mrcnn_class_logits, mrcnn_class, mrcnn_bbox, mrcnn_latitude_logits, mrcnn_longitude_logits =\
                 fpn_classifier_graph(rois, mrcnn_feature_maps, input_image_meta,
                                      config.POOL_SIZE, config.NUM_CLASSES,
+                                     config.NUM_POSE_LATITUDE,
+                                     config.NUM_POSE_LONGITUDE,
                                      train_bn=config.TRAIN_BN,
                                      fc_layers_size=config.FPN_CLASSIF_FC_LAYERS_SIZE)
 
@@ -2072,6 +2108,10 @@ class MaskRCNN():
             mask_loss = KL.Lambda(lambda x: mrcnn_mask_loss_graph(*x), name="mrcnn_mask_loss")(
                 [target_mask, target_class_ids, mrcnn_mask])
             # TODO: pose loss
+            pose_latitude_loss = KL.Lambda(lambda x: mrcnn_pose_latitude_loss_graph(*x), name="mrcnn_pose_latitude_loss")(
+                [target_latitude, mrcnn_latitude_logits])
+            pose_longitude_loss = KL.Lambda(lambda x: mrcnn_pose_longitude_loss_graph(*x), name="mrcnn_pose_longitude_loss")(
+                [target_longitude, mrcnn_longitude_logits])
 
 
 
@@ -2084,14 +2124,17 @@ class MaskRCNN():
             outputs = [rpn_class_logits, rpn_class, rpn_bbox,
                        mrcnn_class_logits, mrcnn_class, mrcnn_bbox, mrcnn_mask,
                        rpn_rois, output_rois,
-                       rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss, mask_loss]
+                       rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss, mask_loss, 
+                       pose_latitude_loss, pose_longitude_loss]
             model = KM.Model(inputs, outputs, name='mask_rcnn')
         else:
             # Network Heads
             # Proposal classifier and BBox regressor heads
-            mrcnn_class_logits, mrcnn_class, mrcnn_bbox =\
+            mrcnn_class_logits, mrcnn_class, mrcnn_bbox, mrcnn_latitude_logits, mrcnn_longitude_logits =\
                 fpn_classifier_graph(rpn_rois, mrcnn_feature_maps, input_image_meta,
                                      config.POOL_SIZE, config.NUM_CLASSES,
+                                     config.NUM_POSE_LATITUDE,
+                                     config.NUM_POSE_LONGITUDE,
                                      train_bn=config.TRAIN_BN,
                                      fc_layers_size=config.FPN_CLASSIF_FC_LAYERS_SIZE)
 
