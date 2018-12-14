@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw
 ROOT_DIR = '/home/hangwu/Mask_RCNN'
 sys.path.append(ROOT_DIR) 
 from mrcnn.config import Config
-import mrcnn.utils as utils
+import mrcnn.utils_fusion as utils
 from mrcnn import visualize_fusion as visualize
 import mrcnn.model_fusion as modellib
 
@@ -57,7 +57,13 @@ class CarDoorConfig(Config):
     IMAGES_PER_GPU = 1
 
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 1  # background + 1 (car_door)
+    NUM_CLASSES = 1 + 1  # background (class id: 0) + 1 (car_door)
+
+    # Number of pose latitude classes
+    NUM_POSE_LATITUDE = 90
+
+    # Number of pose longitude classes
+    NUM_POSE_LONGITUDE = 360
 
     # All of our training images are 512x512
     IMAGE_MIN_DIM = 378
@@ -167,7 +173,7 @@ class CarPartsDataset(utils.Dataset):
         
         image_info = self.image_info[image_id]
         
-#         print(image_info.items()) ##
+        # print(image_info.items()) ##
 #         print(image_info['path']) ##
         mask_name = image_info['path'].split(os.path.sep)[-1][:-4]+'.png' ##
 #         print(mask_name)
@@ -223,12 +229,28 @@ class CarPartsDataset(utils.Dataset):
         
         image_name = image_info['path'].split(os.path.sep)[-1]
         print("Test Pose, image name: {}".format(image_name))
-        match = re.match(r'([A-Za-z_]+)(_+)([0-9]+)(_+)([0-9])', image_name, re.I)
-        class_name = match.groups()[0]
-        latitude = match.groups()[2]
-        longitude = match.groups()[4]
-        print("latitude: {}".format(latitude))
-        print("longitude: {}".format(longitude))
+        match = re.match(r'([A-Za-z_]+)(_+)([0-9]+)(_+)([0-9]+)(\.[A-Za-z_])', image_name, re.I)
+        # class_name = match.groups()[0]
+        latitude = int(match.groups()[2])
+        longitude = int(match.groups()[4])
+        ### Test >>>>
+        # print("latitude: {}".format(latitude))
+        # print("longitude: {}".format(longitude))
+        ### Test <<<<
+        
+        latitude_ids = []
+        longitude_ids = []
+        ### Test >>>>
+        latitude_ids.append(latitude)
+        longitude_ids.append(longitude)
+        ### Test <<<<
+        print("Latitude IDs: {}".format(latitude_ids))
+        print("Longitude IDs: {}".format(longitude_ids))
+
+        return latitude_ids, longitude_ids
+
+
+
 
 
 
@@ -258,9 +280,10 @@ for image_id in image_ids:
     image = dataset.load_image(image_id)
     mask, class_ids = dataset.load_mask(image_id)
     ##### Test pose >>>>
-    dataset.load_pose(image_id)
+    latitude_ids, longitude_ids = dataset.load_pose(image_id)
     ##### Test pose <<<<
-    visualize.display_top_masks(image, mask, class_ids, dataset.class_names)
+    visualize.display_top_masks_with_pose(image, mask, class_ids, dataset.class_names, 
+                                            latitude_ids, longitude_ids)
 
 
 # # Create the Training Model and Train

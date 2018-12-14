@@ -24,7 +24,7 @@ import keras.layers as KL
 import keras.engine as KE
 import keras.models as KM
 
-from mrcnn import utils
+from mrcnn import utils_fusion as utils
 
 # Requires TensorFlow 1.3+ and Keras 2.0.8+.
 from distutils.version import LooseVersion
@@ -525,6 +525,12 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks,
                                    name="trim_gt_class_ids")
     gt_masks = tf.gather(gt_masks, tf.where(non_zeros)[:, 0], axis=2,
                          name="trim_gt_masks")
+    ### POSE
+    gt_latitude = tf.boolean_mask(gt_latitude, non_zeros,
+                                   name="trim_gt_latitude_ids")
+    gt_longitude = tf.boolean_mask(gt_longitude, non_zeros,
+                                   name="trim_gt_latitude_ids")
+    ### POSE 
 
     # Handle COCO crowds
     # A crowd box in COCO is a bounding box around several instances. Exclude
@@ -634,8 +640,7 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks,
     deltas = tf.pad(deltas, [(0, N + P), (0, 0)])
     masks = tf.pad(masks, [[0, N + P], (0, 0), (0, 0)])
 
-
-    ### POSE
+    ### POSE 0 pad ???
     roi_gt_latitude = tf.pad(roi_gt_latitude, [(0, N + P)])
     roi_gt_longitude = tf.pad(roi_gt_longitude, [(0, N + P)])
     ### POSE
@@ -655,6 +660,9 @@ class DetectionTargetLayer(KE.Layer):
               coordinates.
     gt_masks: [batch, height, width, MAX_GT_INSTANCES] of boolean type
 
+    gt_latitude: [batch, MAX_GT_INSTANCES] Integer latitude IDs.
+    gt_longitude: [batch, MAX_GT_INSTANCES] Integer longitude IDs.
+
     Returns: Target ROIs and corresponding class IDs, bounding box shifts,
     and masks.
     rois: [batch, TRAIN_ROIS_PER_IMAGE, (y1, x1, y2, x2)] in normalized
@@ -666,6 +674,10 @@ class DetectionTargetLayer(KE.Layer):
     target_mask: [batch, TRAIN_ROIS_PER_IMAGE, height, width)
                  Masks cropped to bbox boundaries and resized to neural
                  network output size.
+    ###
+    target_latitude: [batch, TRAIN_ROIS_PER_IMAGE]. Integer latitude IDs.
+    terget_longitude: [batch, TRAIN_ROIS_PER_IMAGE]. Integer longitude IDs.
+    ###
 
     Note: Returned arrays might be zero padded if not enough target ROIs.
     """
@@ -1156,12 +1168,9 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
 def mrcnn_pose_latitude_loss_graph(target_latitude, pred_latitude):
     """Loss for the classifier head of Mask RCNN.
 
-    target_class_ids: [batch, num_rois]. Integer class IDs. Uses zero
-        padding to fill in the array.
-    pred_class_logits: [batch, num_rois, num_classes]
-    active_class_ids: [batch, num_classes]. Has a value of 1 for
-        classes that are in the dataset of the image, and 0
-        for classes that are not in the dataset.
+    target_latitude: [batch, num_rois]. Integer latitude IDs
+    pred_latitude: [batch, num_rois]. Integer latitude IDs
+
     """
 
     target_latitude = tf.cast(target_latitude, 'int64')
@@ -1178,12 +1187,9 @@ def mrcnn_pose_latitude_loss_graph(target_latitude, pred_latitude):
 def mrcnn_pose_longitude_loss_graph(target_longitude, pred_longitude):
     """Loss for the classifier head of Mask RCNN.
 
-    target_class_ids: [batch, num_rois]. Integer class IDs. Uses zero
-        padding to fill in the array.
-    pred_class_logits: [batch, num_rois, num_classes]
-    active_class_ids: [batch, num_classes]. Has a value of 1 for
-        classes that are in the dataset of the image, and 0
-        for classes that are not in the dataset.
+    target_longitude: [batch, num_rois]. Integer longitude IDs
+    pred_longitude: [batch, num_rois]. Integer longitude IDs
+
     """
 
     target_longitude = tf.cast(target_longitude, 'int64')
@@ -1293,10 +1299,19 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
     mask: [height, width, instance_count]. The height and width are those
         of the image unless use_mini_mask is True, in which case they are
         defined in MINI_MASK_SHAPE.
+
+    ###
+    laitude_ids: [instance_count]
+    longitude_ids: [instance_count]
+    ###
+
     """
     # Load image and mask
     image = dataset.load_image(image_id)
     mask, class_ids = dataset.load_mask(image_id)
+    ### POSE IDs >>>>
+    latitude_ids, longitude_ids = dataset.load_pose(image_id)
+    ### POSE IDs <<<<
     original_shape = image.shape
     image, window, scale, padding, crop = utils.resize_image(
         image,
@@ -1350,6 +1365,12 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
     _idx = np.sum(mask, axis=(0, 1)) > 0
     mask = mask[:, :, _idx]
     class_ids = class_ids[_idx]
+
+    ### POSE
+    latitude_ids = latitude_ids[_idx]
+    longitude_ids = longitude_ids[_idx]
+    ### POSE
+
     # Bounding boxes. Note that some boxes might be all zeros
     # if the corresponding mask got cropped out.
     # bbox: [num_instances, (y1, x1, y2, x2)]
@@ -1370,10 +1391,10 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
     image_meta = compose_image_meta(image_id, original_shape, image.shape,
                                     window, scale, active_class_ids)
 
-    return image, image_meta, class_ids, bbox, mask
+    return image, image_meta, class_ids, bbox, mask, latitude_ids, longitude_ids
 
 
-def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
+def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, gt_latitude, gt_longitude, config):
     """Generate targets for training Stage 2 classifier and mask heads.
     This is not used in normal training. It's useful for debugging or to train
     the Mask RCNN heads without using the RPN head.
@@ -1381,6 +1402,12 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     Inputs:
     rpn_rois: [N, (y1, x1, y2, x2)] proposal boxes.
     gt_class_ids: [instance count] Integer class IDs
+
+    ###
+    gt_latitude: [instance count] latitude class IDs
+    gt_longitude: [instance count] longitude class IDs
+    ###
+
     gt_boxes: [instance count, (y1, x1, y2, x2)]
     gt_masks: [height, width, instance count] Ground truth masks. Can be full
               size or mini-masks.
@@ -1400,6 +1427,10 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
         gt_boxes.dtype)
     assert gt_masks.dtype == np.bool_, "Expected bool but got {}".format(
         gt_masks.dtype)
+    assert gt_latitude == np.int32, "Expected int but got {}".format(
+        gt_latitude.dtype)
+    assert gt_longitude == np.int32, "Expected int but got {}".format(
+        gt_longitude.dtype)
 
     # It's common to add GT Boxes to ROIs but we don't do that here because
     # according to XinLei Chen's paper, it doesn't help.
@@ -1408,6 +1439,10 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     instance_ids = np.where(gt_class_ids > 0)[0]
     assert instance_ids.shape[0] > 0, "Image must contain instances."
     gt_class_ids = gt_class_ids[instance_ids]
+    ### POSE
+    gt_latitude = gt_latitude[instance_ids]
+    gt_longitude = gt_longitude[instance_ids]
+    ###
     gt_boxes = gt_boxes[instance_ids]
     gt_masks = gt_masks[:, :, instance_ids]
 
@@ -1431,7 +1466,10 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     # GT box assigned to each ROI
     rpn_roi_gt_boxes = gt_boxes[rpn_roi_iou_argmax]
     rpn_roi_gt_class_ids = gt_class_ids[rpn_roi_iou_argmax]
-
+    ### POSE
+    rpn_roi_gt_latitude = gt_latitude[rpn_roi_iou_argmax]
+    rpn_roi_gt_longitude = gt_longitude[rpn_roi_iou_argmax]
+    ### POSE
     # Positive ROIs are those with >= 0.5 IoU with a GT box.
     fg_ids = np.where(rpn_roi_iou_max > 0.5)[0]
 
@@ -1482,12 +1520,20 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     # Reset the gt boxes assigned to BG ROIs.
     rpn_roi_gt_boxes[keep_bg_ids, :] = 0
     rpn_roi_gt_class_ids[keep_bg_ids] = 0
+    ### POSE
+    rpn_roi_gt_latitude[keep_bg_ids] = 0
+    rpn_roi_gt_longitude[keep_bg_ids] = 0
 
     # For each kept ROI, assign a class_id, and for FG ROIs also add bbox refinement.
     rois = rpn_rois[keep]
     roi_gt_boxes = rpn_roi_gt_boxes[keep]
     roi_gt_class_ids = rpn_roi_gt_class_ids[keep]
     roi_gt_assignment = rpn_roi_iou_argmax[keep]
+
+    ### POSE
+    roi_gt_latitude = rpn_roi_gt_latitude[keep]
+    roi_gt_longitude = rpn_roi_gt_longitude[keep]
+
 
     # Class-aware bbox deltas. [y, x, log(h), log(w)]
     bboxes = np.zeros((config.TRAIN_ROIS_PER_IMAGE,
@@ -1503,6 +1549,8 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
                      dtype=np.float32)
     for i in pos_ids:
         class_id = roi_gt_class_ids[i]
+        # latitude_id = roi_gt_latitude[i]
+        # longitude_id = roi_gt_longitude[i]
         assert class_id > 0, "class id must be greater than 0"
         gt_id = roi_gt_assignment[i]
         class_mask = gt_masks[:, :, gt_id]
@@ -1527,7 +1575,7 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
         mask = skimage.transform.resize(m, config.MASK_SHAPE, order=1, mode="constant")
         masks[i, :, :, class_id] = mask
 
-    return rois, roi_gt_class_ids, bboxes, masks
+    return rois, roi_gt_class_ids, bboxes, masks, roi_gt_latitude, roi_gt_longitude
 
 
 def build_rpn_targets(image_shape, anchors, gt_class_ids, gt_boxes, config):
@@ -1726,9 +1774,14 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
     shuffle: If True, shuffles the samples before every epoch
     augment: (deprecated. Use augmentation instead). If true, apply random
         image augmentation. Currently, only horizontal flipping is offered.
+
+    ### IMPORTANT!!!
     augmentation: Optional. An imgaug (https://github.com/aleju/imgaug) augmentation.
         For example, passing imgaug.augmenters.Fliplr(0.5) flips images
         right/left 50% of the time.
+    ###
+
+
     random_rois: If > 0 then generate proposals to be used to train the
                  network classifier and mask heads. Useful if training
                  the Mask RCNN part without the RPN.
@@ -1749,6 +1802,10 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
     - rpn_match: [batch, N] Integer (1=positive anchor, -1=negative, 0=neutral)
     - rpn_bbox: [batch, N, (dy, dx, log(dh), log(dw))] Anchor bbox deltas.
     - gt_class_ids: [batch, MAX_GT_INSTANCES] Integer class IDs
+    #
+    - gt_latitude: [batch, MAX_GT_INSTANCES]
+    - gt_longitude: [batch, MAX_GT_INSTANCES]
+    #
     - gt_boxes: [batch, MAX_GT_INSTANCES, (y1, x1, y2, x2)]
     - gt_masks: [batch, height, width, MAX_GT_INSTANCES]. The height and width
                 are those of the image unless use_mini_mask is True, in which
@@ -1786,12 +1843,12 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 
             # If the image source is not to be augmented pass None as augmentation
             if dataset.image_info[image_id]['source'] in no_augmentation_sources:
-                image, image_meta, gt_class_ids, gt_boxes, gt_masks = \
+                image, image_meta, gt_class_ids, gt_boxes, gt_masks, gt_latitude, gt_longitude = \
                 load_image_gt(dataset, config, image_id, augment=augment,
                               augmentation=None,
                               use_mini_mask=config.USE_MINI_MASK)
             else:
-                image, image_meta, gt_class_ids, gt_boxes, gt_masks = \
+                image, image_meta, gt_class_ids, gt_boxes, gt_masks, gt_latitude, gt_longitude = \
                     load_image_gt(dataset, config, image_id, augment=augment,
                                 augmentation=augmentation,
                                 use_mini_mask=config.USE_MINI_MASK)
@@ -1811,9 +1868,9 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                 rpn_rois = generate_random_rois(
                     image.shape, random_rois, gt_class_ids, gt_boxes)
                 if detection_targets:
-                    rois, mrcnn_class_ids, mrcnn_bbox, mrcnn_mask =\
+                    rois, mrcnn_class_ids, mrcnn_bbox, mrcnn_mask, mrcnn_latitude_ids, mrcnn_longitude_ids =\
                         build_detection_targets(
-                            rpn_rois, gt_class_ids, gt_boxes, gt_masks, config)
+                            rpn_rois, gt_class_ids, gt_boxes, gt_masks, gt_latitude, gt_longitude, config)
 
             # Init batch arrays
             if b == 0:
@@ -1827,6 +1884,15 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                     (batch_size,) + image.shape, dtype=np.float32)
                 batch_gt_class_ids = np.zeros(
                     (batch_size, config.MAX_GT_INSTANCES), dtype=np.int32)
+
+                ### POSE
+
+                batch_gt_latitude_ids = np.zeros(
+                    (batch_size, config.MAX_GT_INSTANCES), dtype=np.int32)
+                batch_gt_longitude_ids = np.zeros(
+                    (batch_size, config.MAX_GT_INSTANCES), dtype=np.int32)
+                ### POSE
+
                 batch_gt_boxes = np.zeros(
                     (batch_size, config.MAX_GT_INSTANCES, 4), dtype=np.int32)
                 batch_gt_masks = np.zeros(
@@ -1844,12 +1910,29 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                             (batch_size,) + mrcnn_bbox.shape, dtype=mrcnn_bbox.dtype)
                         batch_mrcnn_mask = np.zeros(
                             (batch_size,) + mrcnn_mask.shape, dtype=mrcnn_mask.dtype)
+                        
+                        ### POSE >>>>
+                        batch_mrcnn_latitude_ids = np.zeros(
+                            (batch_size,) + mrcnn_latitude_ids.shape, dtype=mrcnn_latitude_ids.dtype
+                        )
+
+                        batch_mrcnn_longitude_ids = np.zeros(
+                            (batch_size,) + mrcnn_longitude_ids.shape, dtype=mrcnn_longitude_ids.dtype
+                        )
+                        ### POSE <<<<
+
 
             # If more instances than fits in the array, sub-sample from them.
             if gt_boxes.shape[0] > config.MAX_GT_INSTANCES:
                 ids = np.random.choice(
                     np.arange(gt_boxes.shape[0]), config.MAX_GT_INSTANCES, replace=False)
                 gt_class_ids = gt_class_ids[ids]
+
+                ### POSE
+                gt_latitude = gt_latitude[ids]
+                gt_longitude = gt_longitude[ids]
+                ### POSE
+
                 gt_boxes = gt_boxes[ids]
                 gt_masks = gt_masks[:, :, ids]
 
@@ -1859,6 +1942,12 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
             batch_rpn_bbox[b] = rpn_bbox
             batch_images[b] = mold_image(image.astype(np.float32), config)
             batch_gt_class_ids[b, :gt_class_ids.shape[0]] = gt_class_ids
+
+            ### POSE
+            batch_gt_latitude_ids[b, :gt_latitude.shape[0]] = gt_latitude
+            batch_gt_longitude_ids[b, :gt_longitude.shape[0]] = gt_longitude
+            ### POSE
+
             batch_gt_boxes[b, :gt_boxes.shape[0]] = gt_boxes
             batch_gt_masks[b, :, :, :gt_masks.shape[-1]] = gt_masks
             if random_rois:
@@ -1868,12 +1957,18 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                     batch_mrcnn_class_ids[b] = mrcnn_class_ids
                     batch_mrcnn_bbox[b] = mrcnn_bbox
                     batch_mrcnn_mask[b] = mrcnn_mask
+                    ### POSE
+                    batch_mrcnn_latitude_ids[b] = mrcnn_latitude_ids
+                    batch_mrcnn_longitude_ids[b] = mrcnn_longitude_ids
+                    ### POSE
+
             b += 1
 
             # Batch full?
             if b >= batch_size:
                 inputs = [batch_images, batch_image_meta, batch_rpn_match, batch_rpn_bbox,
-                          batch_gt_class_ids, batch_gt_boxes, batch_gt_masks]
+                          batch_gt_class_ids, batch_gt_boxes, batch_gt_masks,
+                          batch_gt_latitude_ids, batch_gt_longitude_ids]
                 outputs = []
 
                 if random_rois:
@@ -1883,8 +1978,17 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                         # Keras requires that output and targets have the same number of dimensions
                         batch_mrcnn_class_ids = np.expand_dims(
                             batch_mrcnn_class_ids, -1)
+                        ### POSE
+                        batch_mrcnn_latitude_ids = np.expand_dims(
+                            batch_mrcnn_latitude_ids, -1
+                        )
+                        batch_mrcnn_longitude_ids = np.expand_dims(
+                            batch_mrcnn_longitude_ids, -1
+                        )
+                        ### POSE
                         outputs.extend(
-                            [batch_mrcnn_class_ids, batch_mrcnn_bbox, batch_mrcnn_mask])
+                            [batch_mrcnn_class_ids, batch_mrcnn_bbox, batch_mrcnn_mask,
+                            batch_mrcnn_latitude_ids, batch_mrcnn_longitude_ids])
 
                 yield inputs, outputs
 
@@ -1973,6 +2077,13 @@ class MaskRCNN():
                 input_gt_masks = KL.Input(
                     shape=[config.IMAGE_SHAPE[0], config.IMAGE_SHAPE[1], None],
                     name="input_gt_masks", dtype=bool)
+            
+            # 4. GT Pose Information (latitude, longitude) (zero padded)
+            input_gt_latitude = KL.Input(
+                shape=[None], name="input_gt_latitude", dtype=tf.int32)
+            input_gt_longitude = KL.Input(
+                shape=[None], name="input_gt_longitude", dtype=tf.int32)
+
         elif mode == "inference":
             # Anchors in normalized coordinates
             input_anchors = KL.Input(shape=[None, 4], name="input_anchors")
@@ -2073,9 +2184,10 @@ class MaskRCNN():
             # Subsamples proposals and generates target outputs for training
             # Note that proposal class IDs, gt_boxes, and gt_masks are zero
             # padded. Equally, returned rois and targets are zero padded.
-            rois, target_class_ids, target_bbox, target_mask =\
+            rois, target_class_ids, target_bbox, target_mask, target_latitude, target_longitude =\
                 DetectionTargetLayer(config, name="proposal_targets")([
-                    target_rois, input_gt_class_ids, gt_boxes, input_gt_masks])
+                    target_rois, input_gt_class_ids, gt_boxes, input_gt_masks, 
+                    input_gt_latitude, input_gt_longitude])
 
             # Network Heads
             # TODO: verify that this handles zero padded ROIs

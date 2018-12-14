@@ -59,9 +59,9 @@ args = vars(ap.parse_args())
 # initialize the number of epochs to train for, initial learning rate,
 # batch size, and image dimensions
 
-EPOCHS = 100
+EPOCHS = 200
 INIT_LR = 1e-4
-BS = 64
+BS = 128
 IMAGE_DIMS = (128, 128, 3)
 
 # initialize the data, latitude value (0~59) and longitude value(0~359)
@@ -127,10 +127,11 @@ f = open(args["longitudebin"], "wb")
 f.write(pickle.dumps(longitudeLB))
 f.close()
 
+
 # partition the data into training and testing splits using 80% of
 # the data for training and the remaining 20% for testing
 split = train_test_split(data, latitudeLabels, longitudeLabels,
-            test_size=0.1)
+            test_size=0.2)
 (trainX, testX, trainLatitudeY, testLatitudeY, 
     trainLongitudeY, testLongitudeY) = split
 
@@ -138,7 +139,7 @@ split = train_test_split(data, latitudeLabels, longitudeLabels,
 
 # initialize VGG multi-output network
 
-model = PoseNet.ResNet_mod(128,128,
+model = PoseNet.VGG16_mod(128,128,
         numLatitudes=len(latitudeLB.classes_),
         numLongitudes=len(longitudeLB.classes_),
         finalAct="softmax")
@@ -159,7 +160,10 @@ model.compile(optimizer=opt, loss=losses, loss_weights=lossWeights,
 	metrics=["accuracy"])
 
 # train the network to perform multi-output classification
-H = model.fit(trainX,
+H = model.fit(
+	# data,
+	# {"latitude_output": latitudeLabels, "longitude_output": longitudeLabels},
+	trainX,
 	{"latitude_output": trainLatitudeY, "longitude_output": trainLongitudeY},
 	validation_data=(testX,
 		{"latitude_output": testLatitudeY, "longitude_output": testLongitudeY}),
