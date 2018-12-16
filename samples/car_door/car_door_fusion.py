@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
 ROOT_DIR = '/home/hangwu/Mask_RCNN'
 sys.path.append(ROOT_DIR) 
-from mrcnn.config import Config
+from mrcnn.config_fusion import Config
 import mrcnn.utils_fusion as utils
 from mrcnn import visualize_fusion as visualize
 import mrcnn.model_fusion as modellib
@@ -60,7 +60,7 @@ class CarDoorConfig(Config):
     NUM_CLASSES = 1 + 1  # background (class id: 0) + 1 (car_door)
 
     # Number of pose latitude classes
-    NUM_POSE_LATITUDE = 90
+    NUM_POSE_LATITUDE = 5
 
     # Number of pose longitude classes
     NUM_POSE_LONGITUDE = 360
@@ -268,12 +268,9 @@ dataset_val.load_data('/home/hangwu/CyMePro/botVision/JSON_generator/output/car_
                       '/home/hangwu/CyMePro/data/dataset/val_data')
 dataset_val.prepare()
 
-
-# ## Display a few images from the training dataset
-
 # In[7]:
-
-
+# ## Display a few images from the training dataset
+'''
 dataset = dataset_train
 image_ids = np.random.choice(dataset.image_ids, 4)
 for image_id in image_ids:
@@ -284,7 +281,7 @@ for image_id in image_ids:
     ##### Test pose <<<<
     visualize.display_top_masks_with_pose(image, mask, class_ids, dataset.class_names, 
                                             latitude_ids, longitude_ids)
-
+'''
 
 # # Create the Training Model and Train
 # This code is largely borrowed from the train_shapes.ipynb notebook.

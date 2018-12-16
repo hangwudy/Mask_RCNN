@@ -1175,6 +1175,9 @@ def mrcnn_pose_latitude_loss_graph(target_latitude, pred_latitude):
 
     target_latitude = tf.cast(target_latitude, 'int64')
 
+    # Test
+    print("target shape:", tf.shape(target_latitude))
+    print("prediction shape:", tf.shape(pred_latitude))
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=target_latitude, logits=pred_latitude
     )
@@ -2084,6 +2087,11 @@ class MaskRCNN():
             input_gt_longitude = KL.Input(
                 shape=[None], name="input_gt_longitude", dtype=tf.int32)
 
+            # Test >>>>
+            print(input_gt_latitude)
+            print(input_gt_longitude)
+            # Test <<<<
+
         elif mode == "inference":
             # Anchors in normalized coordinates
             input_anchors = KL.Input(shape=[None, 4], name="input_anchors")
@@ -2215,11 +2223,21 @@ class MaskRCNN():
                 [input_rpn_bbox, input_rpn_match, rpn_bbox])
             class_loss = KL.Lambda(lambda x: mrcnn_class_loss_graph(*x), name="mrcnn_class_loss")(
                 [target_class_ids, mrcnn_class_logits, active_class_ids])
+
+            # Test >>>>
+            print(target_class_ids, mrcnn_class_logits, active_class_ids)
+            # Test <<<<
+
+
             bbox_loss = KL.Lambda(lambda x: mrcnn_bbox_loss_graph(*x), name="mrcnn_bbox_loss")(
                 [target_bbox, target_class_ids, mrcnn_bbox])
             mask_loss = KL.Lambda(lambda x: mrcnn_mask_loss_graph(*x), name="mrcnn_mask_loss")(
                 [target_mask, target_class_ids, mrcnn_mask])
             # TODO: pose loss
+            # Test >>>>
+            print(target_latitude, mrcnn_latitude_logits)
+            # Test <<<<
+
             pose_latitude_loss = KL.Lambda(lambda x: mrcnn_pose_latitude_loss_graph(*x), name="mrcnn_pose_latitude_loss")(
                 [target_latitude, mrcnn_latitude_logits])
             pose_longitude_loss = KL.Lambda(lambda x: mrcnn_pose_longitude_loss_graph(*x), name="mrcnn_pose_longitude_loss")(

@@ -12,6 +12,7 @@ import sys
 import random
 import itertools
 import colorsys
+import cv2
 
 import numpy as np
 from skimage.measure import find_contours
@@ -172,6 +173,27 @@ def display_instances(image, boxes, masks, class_ids, class_names,
 
     if auto_show:
         plt.show()
+
+
+def mask_highlight(image, mask, xmin, ymin, xmax, ymax):
+    '''extract the mask area for pose estimation, blacken other area
+    '''
+    img_height, img_width = image.shape[:2]
+    background_img = np.zeros((img_height, img_width, 3), np.uint8)
+    mask = (np.sum(mask, -1, keepdims=True) >= 1)
+    if mask.shape[0] > 0:
+        splash = np.where(mask, image, background_img).astype(np.uint8)
+    else:
+        splash = background_img
+    # Crop image
+    splash = splash[ymin:ymax, xmin:xmax]
+    plt.imshow(splash)
+    plt.show()
+
+    splash *= 255
+    splash.astype(np.uint8)
+    cv2.cvtColor(splash, cv2.COLOR_RGB2BGR)
+    return splash
 
 
 def display_differences(image,
