@@ -471,6 +471,7 @@ for image_path in image_paths:
         print('======================================================')
     visualize_car_door.display_instances(img, r['rois'], r['masks'], r['class_ids'],
                                 dataset_val.class_names, r['scores'], figsize=(5, 5), image_name=image_name)
+    visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
     mask_for_pose = visualize_car_door.mask_highlight(img, r['masks'], xmin, ymin, xmax, ymax)
     pose_estimation(mask_for_pose)  
 

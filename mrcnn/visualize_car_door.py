@@ -195,6 +195,47 @@ def mask_highlight(image, mask, xmin, ymin, xmax, ymax):
     cv2.cvtColor(splash, cv2.COLOR_RGB2BGR)
     return splash
 
+def mask_to_squares(image, mask, xmin, ymin, xmax, ymax):
+    '''Extend the mask into a square patch through the bounding box
+    '''
+    img_height, img_width = image.shape[:2]
+    background_img = np.zeros((img_height, img_width, 3), np.uint8)
+    mask = (np.sum(mask, -1, keepdims=True) >= 1)
+    if mask.shape[0] > 0:
+        splash = np.where(mask, image, background_img).astype(np.uint8)
+    else:
+        splash = background_img
+    # Crop image
+    crop_image = splash = splash[ymin:ymax, xmin:xmax]
+    """
+	fill the short side to get a square >>>>
+	"""
+    bbox_height = ymax - ymin
+    bbox_width = xmax - xmin
+    side_len_diff_half = int(abs(bbox_height - bbox_width) / 2)
+
+    if bbox_height >= bbox_width:
+    	new_patch = np.zeros((bbox_height, bbox_height ,3), np.uint8)
+    	for row in range(crop_image.shape[0]):
+    		for col in range(crop_image.shape[1]):
+    			new_patch[row, col + side_len_diff_half] = crop_image[row, col]
+    else:
+    	new_patch = np.zeros((bbox_width, bbox_width ,3), np.uint8)
+    	for row in range(crop_image.shape[0]):
+    		for col in range(crop_image.shape[1]):
+    			new_patch[row, col + side_len_diff_half] = crop_image[row, col]
+    """
+	fill the short side to get a square <<<<
+	"""
+
+    plt.imshow(splash)
+    plt.imshow(new_patch)
+    plt.show()
+
+    splash *= 255
+    splash.astype(np.uint8)
+    cv2.cvtColor(splash, cv2.COLOR_RGB2BGR)
+    return splash
 
 def display_differences(image,
                         gt_box, gt_class_id, gt_mask,
