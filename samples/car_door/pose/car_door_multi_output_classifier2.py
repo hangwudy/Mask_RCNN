@@ -91,7 +91,10 @@ for d in annotation_list['annotations']:
     ymax = d.get('ymax')
     bbox_width = xmax - xmin
     bbox_height = ymax - ymin
-    side_len_diff_half_1 = round(abs(bbox_height - bbox_width) / 2)
+    print(bbox_height)
+    print(bbox_width)
+    side_len_diff_half = round(abs(bbox_height - bbox_width) / 2)
+    print(side_len_diff_half)
     # Bounding Box information <<<
     if args["dataset"] is not None:
         image_name = os.path.join(args["dataset"], image_name)
@@ -101,22 +104,26 @@ for d in annotation_list['annotations']:
     """
 	fill the short edge to get a square >>>>
 	"""
-    for row in range(crop_image.shape[0]):
-    	for col in range(crop_image.shape[1]):
-    		if bbox_height >= bbox_width:
-    			new_patch = np.zeros((bbox_height, bbox_height ,3), np.uint8)
-    			# side_len_diff_half_2 = bbox_height - bbox_width - side_len_diff_half_1
-    			new_patch[row, col + side_len_diff_half_1] = crop_image[row, col]
-    		else:
-    			new_patch = np.zeros((bbox_width, bbox_width ,3), np.uint8)
-    			new_patch[row + side_len_diff_half_1, col] = crop_image[row, col]
+    if bbox_height >= bbox_width:
+    	new_patch = np.zeros((bbox_height, bbox_height ,3), np.uint8)
+    	for row in range(crop_image.shape[0]):
+    		for col in range(crop_image.shape[1]):
+    			new_patch[row, col + side_len_diff_half] = crop_image[row, col]
+    else:
+    	new_patch = np.zeros((bbox_width, bbox_width ,3), np.uint8)
+    	for row in range(crop_image.shape[0]):
+    		for col in range(crop_image.shape[1]):
+    			new_patch[row, col + side_len_diff_half] = crop_image[row, col]
     """
 	fill the short edge to get a square <<<<
 	"""
-
-
+    cv2.imshow("patch1", new_patch)
     image = cv2.resize(new_patch, (IMAGE_DIMS[1], IMAGE_DIMS[0]))
-
+    cv2.imshow("patch2", new_patch)
+    cv2.imshow("crop image", crop_image)
+    cv2.imshow("Test", image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 	# test >>>
     # cv2.imshow("resized crop_image", image)
     # cv2.waitKey(0)
