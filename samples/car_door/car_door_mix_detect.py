@@ -441,7 +441,7 @@ model.load_weights(model_path, by_name=True)
 
 
 # import skimage
-real_test_dir = '/home/hangwu/CyMePro/data/dataset/test_data' 
+real_test_dir = '/home/hangwu/CyMePro/data/dataset/test' 
 # '/home/hangwu/CyMePro/data/test'  # '/home/hangwu/CyMePro/data/dataset/test_data'
 image_paths = []
 for filename in os.listdir(real_test_dir):

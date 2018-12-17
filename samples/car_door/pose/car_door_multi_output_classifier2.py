@@ -33,7 +33,7 @@ import os
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-d", "--dataset", 
-	default="/home/hangwu/Workspace/car_door_half",
+	default="/home/hangwu/Workspace/Car_Door",
 	# required=True,
 	help="path to input dataset (i.e., directory of images)")
 ap.add_argument("-m", "--model", 
@@ -41,7 +41,7 @@ ap.add_argument("-m", "--model",
 	# required=True,
 	help="path to output model")
 ap.add_argument("-l", "--label", 
-	default="/home/hangwu/Workspace/car_door_pose_half.json",
+	default="/home/hangwu/Workspace/annotations/car_door_pose.json",
 	# required=True, 
     help="path to annotation .json file")
 ap.add_argument("-a", "--latitudebin", 
@@ -59,7 +59,7 @@ args = vars(ap.parse_args())
 # initialize the number of epochs to train for, initial learning rate,
 # batch size, and image dimensions
 
-EPOCHS = 200
+EPOCHS = 400
 INIT_LR = 1e-4
 BS = 128
 IMAGE_DIMS = (128, 128, 3)
@@ -83,17 +83,53 @@ for d in annotation_list['annotations']:
     image_name = d.get('image_id')
     latitude = d.get('latitude')
     longitude = d.get('longitude')
+
+    # Bounding Box information >>>
+    xmin = d.get('xmin')
+    ymin = d.get('ymin')
+    xmax = d.get('xmax')
+    ymax = d.get('ymax')
+    bbox_width = xmax - xmin
+    bbox_height = ymax - ymin
+    side_len_diff_half_1 = round(abs(bbox_height - bbox_width) / 2)
+    # Bounding Box information <<<
     if args["dataset"] is not None:
         image_name = os.path.join(args["dataset"], image_name)
     image = cv2.imread(image_name)
-    image = cv2.resize(image, (IMAGE_DIMS[1], IMAGE_DIMS[0]))
+	# Crop image
+    crop_image = image[ymin:ymax, xmin:xmax]
+    """
+	fill the short edge to get a square >>>>
+	"""
+    for row in range(crop_image.shape[0]):
+    	for col in range(crop_image.shape[1]):
+    		if bbox_height >= bbox_width:
+    			new_patch = np.zeros((bbox_height, bbox_height ,3), np.uint8)
+    			# side_len_diff_half_2 = bbox_height - bbox_width - side_len_diff_half_1
+    			new_patch[row, col + side_len_diff_half_1] = crop_image[row, col]
+    		else:
+    			new_patch = np.zeros((bbox_width, bbox_width ,3), np.uint8)
+    			new_patch[row + side_len_diff_half_1, col] = crop_image[row, col]
+    """
+	fill the short edge to get a square <<<<
+	"""
+
+
+    image = cv2.resize(new_patch, (IMAGE_DIMS[1], IMAGE_DIMS[0]))
+
+	# test >>>
+    # cv2.imshow("resized crop_image", image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+	# test <<<
+	
     image = img_to_array(image)
     data.append(image)
     latitudeLabels.append(latitude)
     longitudeLabels.append(longitude)
     #### pruefen >>>>
     if _ % 100 == 0:
-        print('{:.2f}%'.format(_/len(annotation_list['annotations'])*100))
+        print('{:.2f}% finished'.format(_/len(annotation_list['annotations'])*100))
     _ += 1
     #### pruefen <<<<
 

@@ -2,7 +2,7 @@ import lxml
 from lxml import etree
 import tensorflow as tf
 import cv2
-
+import numpy as np
 
 
 def recursive_parse_xml_to_dict(xml):
@@ -61,10 +61,59 @@ def bndbox_from_xml(xml_path):
 if __name__ == "__main__":
     bndbox= bndbox_from_xml('car_door_0_0.xml')
     origin_image = cv2.imread(bndbox['path'])
+
     crop_image = origin_image[bndbox['ymin']:bndbox['ymax'], bndbox['xmin']:bndbox['xmax']]
     resize_image = cv2.resize(crop_image, (227, 227))
+    # bbox width and height
+    img_width = bndbox['xmax'] - bndbox['xmin']
+    img_heigth = bndbox['ymax'] - bndbox['ymin']
+    # left or upon part
+    edge_to_minus = round(abs(img_heigth - img_width) / 2)
+    if img_width > img_heigth:
+        long_edge = img_width
+        edge_to_plus = img_width - img_heigth - edge_to_minus
+        bndbox['ymin'] -= edge_to_minus
+        bndbox['ymax'] += edge_to_plus
+    else:
+        
+        long_edge = img_heigth
+        print(long_edge)
+        edge_to_plus = img_heigth - img_width - edge_to_minus
+        print(img_width)
+        print(edge_to_minus)
+        print(edge_to_plus)
+        bndbox['xmin'] -= edge_to_minus
+        bndbox['xmax'] += edge_to_plus
+        print(bndbox['xmax']-bndbox['xmin'])
+        print(bndbox['xmax'])
+
+    crop_image2 = origin_image[bndbox['ymin']:bndbox['ymax'], bndbox['xmin']:bndbox['xmax']]
+    resize_image2 = cv2.resize(crop_image2, (227, 227))
+    print(crop_image2.shape[0])
+    print(crop_image2.shape[1])
+    # here is not equal because out of the range of the original image
+
+    # for extrem situation can the above method exeed the range
+    blanck_image = np.zeros((long_edge, long_edge, 3), np.uint8)
+    cv2.imshow("test2", blanck_image)
+    
+    for row in range(crop_image.shape[0]):
+        for col in range(crop_image.shape[1]):
+            if img_width > img_heigth:
+                blanck_image[row + edge_to_minus, col] = crop_image[row, col]
+            else:
+                blanck_image[row, col + edge_to_minus] = crop_image[row, col]
+    
+    cv2.imshow("test3", blanck_image)
+
+
+
+
+
     cv2.imshow('original', origin_image)
     cv2.imshow('cropped', crop_image)
     cv2.imshow('resized', resize_image)
+    cv2.imshow('cropped2', crop_image2)
+    cv2.imshow('resized2', resize_image2)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
