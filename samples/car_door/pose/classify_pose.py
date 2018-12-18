@@ -25,15 +25,15 @@ from numpy import random
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-m", "--model", 
-	default="output/pose.model",
+	default="/home/hangwu/Workspace/multi-output-classification/output/pose.model",
 	# required=True,
 	help="path to trained model model")
 ap.add_argument("-a", "--latitudebin", 
-	default="output/latitude_lb.pickle",
+	default="/home/hangwu/Workspace/multi-output-classification/output/latitude_lb.pickle",
 	# required=True,
 	help="path to output latitude label binarizer")
 ap.add_argument("-o", "--longitudebin", 
-	default="output/longitude_lb.pickle",
+	default="/home/hangwu/Workspace/multi-output-classification/output/longitude_lb.pickle",
 	# required=True,
 	help="path to output longitude label binarizer")
 ap.add_argument("-i", "--image", 
@@ -53,6 +53,31 @@ longitudeLB = pickle.loads(open(args["longitudebin"], "rb").read())
 def inference(image_path):
 	# load the image
 	image = cv2.imread(image_path)
+
+	if image.shape[0] > image.shape[1]:
+		img_width = image.shape[1]
+		img_height = image.shape[0]
+		side_len_diff_half = round(abs(img_height - img_width) / 2)
+		new_patch = np.zeros((img_height, img_height ,3), np.uint8)
+		for row in range(img_height):
+			for col in range(img_width):
+				new_patch[row, col + side_len_diff_half] = image[row, col]
+		image = new_patch
+		cv2.imshow("resized image", image)
+		cv2.waitKey(0)
+		cv2.destroyAllWindows()
+	elif image.shape[0] < image.shape[1]:
+		img_width = image.shape[1]
+		img_height = image.shape[0]
+		side_len_diff_half = round(abs(img_height - img_width) / 2)
+		new_patch = np.zeros((img_width, img_width ,3), np.uint8)
+		for row in range(img_height):
+			for col in range(img_width):
+				new_patch[row + side_len_diff_half, col] = image[row, col]
+		image = new_patch
+		cv2.imshow("resized image", image)
+		cv2.waitKey(0)
+		cv2.destroyAllWindows()
 	output = imutils.resize(image, width=400)
 
 	# pre-process the image for classification
@@ -110,11 +135,26 @@ def loadim(image_path = 'Car_Door', ext = 'png', key_word = 'car_door'):
 
 
 def main():
-	img_path_list = loadim(args["image"])
-	# print(img_path_list)
-	img_path_choice = random.choice(img_path_list, 20)
-	# print(img_path_choice)
-	for image_file in img_path_choice:
+
+	# img_path_list = loadim(args["image"])
+	# # print(img_path_list)
+	# test_img = random.choice(img_path_list, 6)
+	# # print(img_path_choice)
+
+
+	test_img_1 = '/home/hangwu/Workspace/multi-output-classification/test_pics/car_door_test_1.png'
+	test_img_2 = '/home/hangwu/Workspace/multi-output-classification/test_pics/car_door_test_2.png'
+	test_img_3 = '/home/hangwu/Workspace/multi-output-classification/test_pics/car_door_test_3.png'
+	test_img_4 = '/home/hangwu/Workspace/multi-output-classification/test_pics/car_door_test_4.png'
+	test_img_5 = '/home/hangwu/Workspace/multi-output-classification/test_pics/door333.png'
+	test_img = []
+	test_img.append(test_img_1)
+	test_img.append(test_img_2)
+	test_img.append(test_img_3)
+	test_img.append(test_img_4)
+	test_img.append(test_img_5)
+
+	for image_file in test_img:
 		print(image_file)
 		inference(image_file)
 
