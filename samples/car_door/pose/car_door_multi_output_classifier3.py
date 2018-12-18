@@ -33,7 +33,7 @@ import os
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-d", "--dataset", 
-	default="/home/hangwu/Workspace/Car_Door",
+	default="/home/hangwu/Workspace/car_door_square",
 	# required=True,
 	help="path to input dataset (i.e., directory of images)")
 ap.add_argument("-m", "--model", 
@@ -85,40 +85,40 @@ for d in annotation_list['annotations']:
     longitude = d.get('longitude')
 
     # Bounding Box information >>>
-    xmin = d.get('xmin')
-    ymin = d.get('ymin')
-    xmax = d.get('xmax')
-    ymax = d.get('ymax')
-    bbox_width = xmax - xmin
-    bbox_height = ymax - ymin
+    # xmin = d.get('xmin')
+    # ymin = d.get('ymin')
+    # xmax = d.get('xmax')
+    # ymax = d.get('ymax')
+    # bbox_width = xmax - xmin
+    # bbox_height = ymax - ymin
     # print(bbox_height)
     # print(bbox_width)
-    side_len_diff_half = round(abs(bbox_height - bbox_width) / 2)
+    # side_len_diff_half = round(abs(bbox_height - bbox_width) / 2)
     # print(side_len_diff_half)
     # Bounding Box information <<<
     if args["dataset"] is not None:
         image_name = os.path.join(args["dataset"], image_name)
     image = cv2.imread(image_name)
 	# Crop image
-    crop_image = image[ymin:ymax, xmin:xmax]
+    # crop_image = image[ymin:ymax, xmin:xmax]
     """
 	fill the short side to get a square >>>>
 	"""
-    if bbox_height >= bbox_width:
-    	new_patch = np.zeros((bbox_height, bbox_height ,3), np.uint8)
-    	for row in range(crop_image.shape[0]):
-    		for col in range(crop_image.shape[1]):
-    			new_patch[row, col + side_len_diff_half] = crop_image[row, col]
-    else:
-    	new_patch = np.zeros((bbox_width, bbox_width ,3), np.uint8)
-    	for row in range(crop_image.shape[0]):
-    		for col in range(crop_image.shape[1]):
-    			new_patch[row + side_len_diff_half, col] = crop_image[row, col]
+    # if bbox_height >= bbox_width:
+    # 	new_patch = np.zeros((bbox_height, bbox_height ,3), np.uint8)
+    # 	for row in range(crop_image.shape[0]):
+    # 		for col in range(crop_image.shape[1]):
+    # 			new_patch[row, col + side_len_diff_half] = crop_image[row, col]
+    # else:
+    # 	new_patch = np.zeros((bbox_width, bbox_width ,3), np.uint8)
+    # 	for row in range(crop_image.shape[0]):
+    # 		for col in range(crop_image.shape[1]):
+    # 			new_patch[row + side_len_diff_half, col] = crop_image[row, col]
     """
 	fill the short side to get a square <<<<
 	"""
     # cv2.imshow("patch1", new_patch)
-    image = cv2.resize(new_patch, (IMAGE_DIMS[1], IMAGE_DIMS[0]))
+    image = cv2.resize(image, (IMAGE_DIMS[1], IMAGE_DIMS[0]))
     # cv2.imshow("patch2", new_patch)
     # cv2.imshow("crop image", crop_image)
     # cv2.imshow("Test", image)
