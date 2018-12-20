@@ -1,5 +1,8 @@
 # coding: utf-8
 # # FusionNet for Car Door Detection and Pose Estimation
+# @author: Hang Wu
+# @date: 2018.12.20
+
 
 import os
 import sys
@@ -41,6 +44,14 @@ ap.add_argument("-i", "--image",
                 default="/home/hangwu/Workspace/car_door_half",
                 # required=True,
                 help="path to input image directory")
+ap.add_argument("-j", "--valjson",
+                default="/home/hangwu/CyMePro/botVision/JSON_generator/output/car_door_val.json",
+                # required=True,
+                help="path to validation data annotation directory")
+ap.add_argument("-v", "--valdata",
+                default="/home/hangwu/CyMePro/data/dataset/val_data",
+                # required=True,
+                help="path to validation data directory")
 args = vars(ap.parse_args())
 
 # load the trained convolutional neural network from disk, followed
@@ -91,7 +102,7 @@ def inference(image_path):
     # show the output image
     cv2.imshow("Output", output)
     image_compare_name = 'car_door_{}_{}.png'.format(latitudeLabel, longitudeLabel)
-    image_compare_path = os.path.join('/home/hangwu/Workspace/Car_Door', image_compare_name)
+    image_compare_path = os.path.join(args["image"], image_compare_name)
     print(image_compare_path)
     image_compare = cv2.imread(image_compare_path)
     image_compare = imutils.resize(image_compare, width=400)
@@ -277,8 +288,7 @@ class CarPartsDataset(utils.Dataset):
 # In[6]:
 
 dataset_val = CarPartsDataset()
-dataset_val.load_data('/home/hangwu/CyMePro/botVision/JSON_generator/output/car_door_val.json',
-                      '/home/hangwu/CyMePro/data/dataset/val_data')
+dataset_val.load_data(args["valjson"], args["valdata"])
 dataset_val.prepare()
 
 
