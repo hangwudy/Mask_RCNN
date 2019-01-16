@@ -164,6 +164,7 @@ def pose_estimation(image):
     image_compare = imutils.resize(image_compare, width=400)
     cv2.imshow("Comparison", image_compare)
     cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 
 ##########################################################################################
