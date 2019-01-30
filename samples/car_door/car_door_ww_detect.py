@@ -8,19 +8,20 @@ import numpy as np
 import time
 import skimage.io
 from PIL import Image, ImageDraw
+
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
 ROOT_DIR = '/home/hangwu/Mask_RCNN'
-sys.path.append(ROOT_DIR) 
+sys.path.append(ROOT_DIR)
 from mrcnn.config import Config
 import mrcnn.utils as utils
 from mrcnn import visualize_car_door
 import mrcnn.model as modellib
 
-
 # ## Set up logging and pre-trained model paths
 
 # Directory to save logs and trained model
 MODEL_DIR = os.path.join(ROOT_DIR, "logs")
+
 
 # ## Configuration
 # Define configurations for training on the car door dataset.
@@ -51,16 +52,16 @@ class CarDoorConfig(Config):
     # This is how often validation is run. If you are using too much hard drive space
     # on saved models (in the MODEL_DIR), try making this value larger.
     VALIDATION_STEPS = 5
-    
+
     # use resnet101 or resnet50
     BACKBONE = 'resnet101'
 
     # To be honest, I haven't taken the time to figure out what these do
-    RPN_ANCHOR_SCALES = (16, 32, 64, 128, 256) # (8, 16, 32, 64, 128)
+    RPN_ANCHOR_SCALES = (16, 32, 64, 128, 256)  # (8, 16, 32, 64, 128)
     TRAIN_ROIS_PER_IMAGE = 32
-    MAX_GT_INSTANCES = 50 
-    POST_NMS_ROIS_INFERENCE = 500 
-    POST_NMS_ROIS_TRAINING = 1000 
+    MAX_GT_INSTANCES = 50
+    POST_NMS_ROIS_INFERENCE = 500
+    POST_NMS_ROIS_TRAINING = 1000
 
 
 config = CarDoorConfig()
@@ -84,18 +85,19 @@ class CarPartsDataset(utils.Dataset):
         json_file = open(annotation_json)
         car_door_json = json.load(json_file)
         json_file.close()
-        
+
         # Add the class names using the base method from utils.Dataset
         source_name = "car_parts"
         for category in car_door_json['categories']:
             class_id = category['id']
             class_name = category['name']
             if class_id < 1:
-                print('Error: Class id for "{}" cannot be less than one. (0 is reserved for the background)'.format(class_name))
+                print('Error: Class id for "{}" cannot be less than one. (0 is reserved for the background)'.format(
+                    class_name))
                 return
-            
+
             self.add_class(source_name, class_id, class_name)
-        
+
         # Get all annotations
         annotations = {}
         for annotation in car_door_json['annotations']:
@@ -103,7 +105,7 @@ class CarPartsDataset(utils.Dataset):
             if image_id not in annotations:
                 annotations[image_id] = []
             annotations[image_id].append(annotation)
-        
+
         # Get all images and add them to the dataset
         seen_images = {}
         for image in car_door_json['images']:
@@ -118,10 +120,10 @@ class CarPartsDataset(utils.Dataset):
                     image_height = image['height']
                 except KeyError as key:
                     print("Warning: Skipping image (id: {}) with missing key: {}".format(image_id, key))
-                
+
                 image_path = os.path.abspath(os.path.join(images_dir, image_file_name))
                 image_annotations = annotations[image_id]
-                
+
                 # Add the image using the base method from utils.Dataset
                 self.add_image(
                     source=source_name,
@@ -131,6 +133,8 @@ class CarPartsDataset(utils.Dataset):
                     height=image_height,
                     annotations=image_annotations
                 )
+
+
 '''
     def load_mask(self, image_id):
         """ 
@@ -229,19 +233,17 @@ class InferenceConfig(CarDoorConfig):
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
     DETECTION_MIN_CONFIDENCE = 0.85
-    
+
 
 inference_config = InferenceConfig()
-
 
 # In[8]:
 
 
 # Recreate the model in inference mode
-model = modellib.MaskRCNN(mode="inference", 
+model = modellib.MaskRCNN(mode="inference",
                           config=inference_config,
                           model_dir=MODEL_DIR)
-
 
 # In[9]:
 
@@ -258,18 +260,20 @@ assert model_path != "", "Provide path to trained weights"
 print("Loading weights from ", model_path)
 model.load_weights(model_path, by_name=True)
 
-
 # # Run Inference
 # Run model.detect()
 
 
 # import skimage
-real_test_dir = '/home/hangwu/CyMePro/data/dataset/test_data' 
+real_test_dir = '/home/hangwu/CyMePro/data/dataset/bwmin'
+# "/home/hangwu/CyMePro/data/CachedObjects"
+# '/home/hangwu/CyMePro/data/dataset/blackwhite'
 # '/home/hangwu/CyMePro/data/test'  # '/home/hangwu/CyMePro/data/dataset/test_data'
 image_paths = []
 for filename in os.listdir(real_test_dir):
     if os.path.splitext(filename)[1].lower() in ['.png', '.jpg', '.jpeg', '.JPG']:
         image_paths.append(os.path.join(real_test_dir, filename))
+        image_paths.sort()
 
 for image_path in image_paths:
     img = skimage.io.imread(image_path)
@@ -293,138 +297,7 @@ for image_path in image_paths:
         print('Center of the Mask: ', center_of_mask)
         print('======================================================')
     visualize_car_door.display_instances(img, r['rois'], r['masks'], r['class_ids'],
-                                dataset_val.class_names, r['scores'], figsize=(5, 5), image_name=image_name)
-        
-    main()
+                                         dataset_val.class_names, r['scores'], figsize=(5, 5), image_name=image_name)
 
 
-
-
-##############################
-## Test for combination
-##############################
-
-
-# import the necessary packages
-from keras.preprocessing.image import img_to_array
-from keras.models import load_model
-import tensorflow as tf
-import numpy as np
-import argparse
-import imutils
-import pickle
-import cv2
-import os
-from numpy import random
-
-
-# construct the argument parse and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-m", "--model", 
-	default="/home/hangwu/Workspace/multi-output-classification/output/pose.model",
-	# required=True,
-	help="path to trained model model")
-ap.add_argument("-a", "--latitudebin", 
-	default="/home/hangwu/Workspace/multi-output-classification/output/latitude_lb.pickle",
-	# required=True,
-	help="path to output latitude label binarizer")
-ap.add_argument("-o", "--longitudebin", 
-	default="/home/hangwu/Workspace/multi-output-classification/output/longitude_lb.pickle",
-	# required=True,
-	help="path to output longitude label binarizer")
-ap.add_argument("-i", "--image", 
-	default="/home/hangwu/Workspace/car_door_half",
-	# required=True,
-	help="path to input image directory")
-args = vars(ap.parse_args())
-
-
-# load the trained convolutional neural network from disk, followed
-# by the latitude and longitude label binarizers, respectively
-print("[INFO] loading network...")
-model = load_model(args["model"], custom_objects={"tf": tf})
-latitudeLB = pickle.loads(open(args["latitudebin"], "rb").read())
-longitudeLB = pickle.loads(open(args["longitudebin"], "rb").read())
-
-def inference(image_path):
-	# load the image
-	image = cv2.imread(image_path)
-	output = imutils.resize(image, width=400)
-
-	# pre-process the image for classification
-	image = cv2.resize(image, (128, 128))
-	image = image.astype("float") / 255.0
-	image = img_to_array(image)
-	image = np.expand_dims(image, axis=0)
-	
-
-
-	# classify the input image using Keras' multi-output functionality
-	print("[INFO] classifying image...")
-	(latitudeProba, longitudeProba) = model.predict(image)
-
-	# find indexes of both the latitude and longitude outputs with the
-	# largest probabilities, then determine the corresponding class
-	# labels
-	latitudeIdx = latitudeProba[0].argmax()
-	longitudeIdx = longitudeProba[0].argmax()
-	latitudeLabel = latitudeLB.classes_[latitudeIdx]
-	longitudeLabel = longitudeLB.classes_[longitudeIdx]
-
-	# draw the latitude label and longitude label on the image
-	latitudeText = "latitude: {} ({:.2f}%)".format(latitudeLabel,
-		latitudeProba[0][latitudeIdx] * 100)
-	longitudeText = "longitude: {} ({:.2f}%)".format(longitudeLabel,
-		longitudeProba[0][longitudeIdx] * 100)
-	cv2.putText(output, latitudeText, (10, 25), cv2.FONT_HERSHEY_SIMPLEX,
-		0.7, (0, 255, 0), 2)
-	cv2.putText(output, longitudeText, (10, 55), cv2.FONT_HERSHEY_SIMPLEX,
-		0.7, (0, 255, 0), 2)
-
-	# display the predictions to the terminal as well
-	print("[INFO] {}".format(latitudeText))
-	print("[INFO] {}".format(longitudeText))
-
-	# show the output image
-	cv2.imshow("Output", output)
-	image_compare_name = 'car_door_{}_{}.png'.format(latitudeLabel, longitudeLabel)
-	image_compare_path = os.path.join('/home/hangwu/Workspace/Car_Door', image_compare_name)
-	print(image_compare_path)
-	image_compare = cv2.imread(image_compare_path)
-	image_compare = imutils.resize(image_compare, width=400)
-	cv2.imshow("Comparison", image_compare)
-	cv2.waitKey(0)
-
-def loadim(image_path = 'Car_Door', ext = 'png', key_word = 'car_door'):
-    image_list = []
-    for filename in os.listdir(image_path):
-        if filename.endswith(ext) and filename.find(key_word) != -1:
-            current_path = os.path.abspath(image_path)
-            image_abs_path = os.path.join(current_path,filename)
-            image_list.append(image_abs_path)
-    return image_list
-
-
-def main():
-
-	# img_path_list = loadim(args["image"])
-	# # print(img_path_list)
-	# test_img = random.choice(img_path_list, 6)
-	# # print(img_path_choice)
-
-
-	test_img_1 = '/home/hangwu/Workspace/multi-output-classification/test_pics/car_door_pure441.png'
-	test_img_2 = '/home/hangwu/Workspace/multi-output-classification/test_pics/car_door_pure333.png'
-	test_img = []
-	test_img.append(test_img_1)
-	test_img.append(test_img_2)
-
-
-	for image_file in test_img:
-		print(image_file)
-		inference(image_file)
-
-
-if __name__ == "__main__":
-	main()
 

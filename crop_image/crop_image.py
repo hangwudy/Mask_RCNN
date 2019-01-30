@@ -106,10 +106,6 @@ if __name__ == "__main__":
     
     cv2.imshow("test3", blanck_image)
 
-
-
-
-
     cv2.imshow('original', origin_image)
     cv2.imshow('cropped', crop_image)
     cv2.imshow('resized', resize_image)

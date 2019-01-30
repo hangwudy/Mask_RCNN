@@ -176,8 +176,8 @@ def display_instances(image, boxes, masks, class_ids, class_names,
 
 
 def mask_highlight(image, mask, xmin, ymin, xmax, ymax):
-    '''extract the mask area for pose estimation, blacken other area
-    '''
+    """extract the mask area for pose estimation, blacken other area
+    """
     img_height, img_width = image.shape[:2]
     background_img = np.zeros((img_height, img_width, 3), np.uint8)
     mask = (np.sum(mask, -1, keepdims=True) >= 1)
@@ -236,7 +236,7 @@ def mask_to_squares(image, mask, xmin, ymin, xmax, ymax):
     splash *= 255
     splash.astype(np.uint8)
     cv2.cvtColor(splash, cv2.COLOR_RGB2BGR)
-    return splash
+    return new_patch
 
 
 def display_differences(image,

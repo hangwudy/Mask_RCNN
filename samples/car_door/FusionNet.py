@@ -22,6 +22,7 @@ ROOT_DIR = '/home/hangwu/Mask_RCNN'
 sys.path.append(ROOT_DIR)
 from mrcnn.config import Config
 import mrcnn.utils as utils
+import time
 from mrcnn import visualize_car_door
 import mrcnn.model as modellib
 
@@ -106,7 +107,11 @@ def inference(image_path):
     print(image_compare_path)
     image_compare = cv2.imread(image_compare_path)
     image_compare = imutils.resize(image_compare, width=400)
-    cv2.imshow("Comparison", image_compare)
+    image_horizontal = np.hstack((output,image_compare))
+    cv2.imwrite("/home/hangwu/Mask_RCNN/detected_images/Results_{:4.2f}.png".format(time.time()), image_horizontal)
+    cv2.imshow("Reality and Prediction", image_horizontal)
+    # cv2.imshow("Comparison", image_compare)
+
     cv2.waitKey(0)
 
 
@@ -122,6 +127,7 @@ def loadim(image_path='Car_Door', ext='png', key_word='car_door'):
 
 def pose_estimation(image):
     output = imutils.resize(image, width=400)
+    print("output size:", output.shape)
 
     # pre-process the image for classification
     image = cv2.resize(image, (128, 128))
@@ -162,7 +168,12 @@ def pose_estimation(image):
     print(image_compare_path)
     image_compare = cv2.imread(image_compare_path)
     image_compare = imutils.resize(image_compare, width=400)
-    cv2.imshow("Comparison", image_compare)
+    print("Compare size:", image_compare.shape)
+    # image_horizontal = np.hstack((output, image_compare))
+    image_horizontal_concat = np.concatenate((output, image_compare), axis=1)
+    cv2.imwrite("/home/hangwu/Mask_RCNN/detected_images/Results_{:4.0f}.png".format(time.time()), image_horizontal_concat)
+    cv2.imshow("Reality and Prediction", image_horizontal_concat)
+    # cv2.imshow("Comparison", image_compare)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -336,7 +347,9 @@ model.load_weights(model_path, by_name=True)
 
 
 # import skimage
-real_test_dir = '/home/hangwu/CyMePro/data/dataset/test'
+real_test_dir = "/home/hangwu/CyMePro/data/dataset/bwmin"
+
+# '/home/hangwu/CyMePro/data/dataset/test'
 # '/home/hangwu/CyMePro/data/test'  # '/home/hangwu/CyMePro/data/dataset/test_data'
 image_paths = []
 for filename in os.listdir(real_test_dir):
@@ -366,6 +379,6 @@ for image_path in image_paths:
         print('======================================================')
     visualize_car_door.display_instances(img, r['rois'], r['masks'], r['class_ids'],
                                          dataset_val.class_names, r['scores'], figsize=(5, 5), image_name=image_name)
-    visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
-    mask_for_pose = visualize_car_door.mask_highlight(img, r['masks'], xmin, ymin, xmax, ymax)
+    mask_for_pose = visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
+    # mask_for_pose = visualize_car_door.mask_highlight(img, r['masks'], xmin, ymin, xmax, ymax)
     pose_estimation(mask_for_pose)
