@@ -9,8 +9,9 @@ import sys
 import json
 import numpy as np
 import skimage.io
-import matplotlib.pyplot as plt
-import csv
+import time
+import re
+# from skimage.transform import resize
 from skimage.color import gray2rgb
 from keras.preprocessing.image import img_to_array
 from keras.models import load_model
@@ -19,51 +20,54 @@ import argparse
 import imutils
 import pickle
 import cv2
-import re
 
-# Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
-ROOT_DIR = '/home/hangwu/Mask_RCNN'
-sys.path.append(ROOT_DIR)
+# Set the MRCNN_DIR variable to the directory of the Mask_RCNN
+MRCNN_DIR = '/home/hangwu/Mask_RCNN'
+sys.path.append(MRCNN_DIR)
 from mrcnn.config import Config
 import mrcnn.utils as utils
 import time
 from mrcnn import visualize_car_door
-import mrcnn.model_new as modellib
+import mrcnn.model as modellib
 
-# PoseNet
+
+# ## Set up logging and pre-trained model paths
+# Directory to save logs and trained model
+MODEL_DIR = os.path.join(MRCNN_DIR, "output")
+
+# AttitudeNet
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-m", "--model",
-                default="/home/hangwu/Workspace/AttitudeNet/output/attitude_vgg16_random.h5",
+ap.add_argument("-ma", "--model_a",
+                default="/home/hangwu/Workspace/AttitudeNet/output//attitude_vgg16.h5",
                 # required=True,
-                help="path to trained Attitude CNN model model")
+                help="path to trained attitude model model")
 ap.add_argument("-mm", "--model_m",
                 default="/media/hangwu/TOSHIBA_EXT/Dataset/weights/mask_rcnn_car_door_0250.h5",
                 # required=True,
                 help="path to trained Mask R-CNN model model")
-ap.add_argument("-a", "--latitudebin",
-                default="/home/hangwu/Workspace/AttitudeNet/output/latitude_lb.pickle",
+ap.add_argument("-la", "--latitudebin",
+                default="/media/hangwu/TOSHIBA_EXT/Dataset/weights/latitude_lb.pickle",
                 # required=True,
                 help="path to output latitude label binarizer")
-ap.add_argument("-o", "--longitudebin",
-                default="/home/hangwu/Workspace/AttitudeNet/output/longitude_lb.pickle",
+ap.add_argument("-lo", "--longitudebin",
+                default="/media/hangwu/TOSHIBA_EXT/Dataset/weights/longitude_lb.pickle",
                 # required=True,
                 help="path to output longitude label binarizer")
 ap.add_argument("-r", "--renderings",
                 default="/media/hangwu/TOSHIBA_EXT/Dataset/renderings_square",
                 # required=True,
                 help="path to input renderings directory")
-ap.add_argument("-j", "--valjson",
+ap.add_argument("-vj", "--val_json",
                 default="/media/hangwu/TOSHIBA_EXT/Dataset/annotations/mask_rcnn/car_door_val.json",
                 # required=True,
-                help="path to validation data annotation directory")
-ap.add_argument("-v", "--valdata",
+                help="path to validation data json annotation directory")
+ap.add_argument("-vd", "--val_data",
                 default="/media/hangwu/TOSHIBA_EXT/Dataset/val_data",
                 # required=True,
                 help="path to validation data directory")
 ap.add_argument("-test", "--test",
                 # default="/media/hangwu/TOSHIBA_EXT/Dataset/test_data",
-                # default="/home/hangwu/CyMePro/data/test",
                 default="/media/hangwu/TOSHIBA_EXT/Dataset/images_from_robot/dataset/images",
                 # required=True,
                 help="path to test dataset directory")
@@ -72,7 +76,7 @@ args = vars(ap.parse_args())
 # load the trained convolutional neural network from disk, followed
 # by the latitude and longitude label binarizers, respectively
 print("[INFO] loading network...")
-model2 = load_model(args["model"], custom_objects={"tf": tf})
+model_attitude = load_model(args["model_a"], custom_objects={"tf": tf})
 latitudeLB = pickle.loads(open(args["latitudebin"], "rb").read())
 longitudeLB = pickle.loads(open(args["longitudebin"], "rb").read())
 
@@ -87,14 +91,11 @@ def loadim(image_path='Car_Door', ext='png', key_word='car_door'):
     return image_list
 
 
-def pose_estimation(image):
-
-    scale = 500
-    output = cv2.resize(image, (scale, scale))
-    image_name = image_path.split(os.path.sep)[-1]
-    gt_latitude, gt_longitude = gt_name(image_name)
-    print("output size:", output.shape)
-
+def pose_estimation(image, real_longitude, image_name):
+    output = imutils.resize(image, width=1000)
+    # cv2.imwrite(
+    #     "/home/wu/CyMePro/Object_Detection/PoseNet/new_training_set/Results_{}_{}.png".format(image_name, time.time()),
+    #     output)
     # pre-process the image for classification
     image = cv2.resize(image, (224, 224))
     image = image.astype("float") / 255.0
@@ -103,7 +104,7 @@ def pose_estimation(image):
 
     # classify the input image using Keras' multi-output functionality
     print("[INFO] classifying image...")
-    (latitudeProba, longitudeProba) = model2.predict(image)
+    (latitudeProba, longitudeProba) = model_attitude.predict(image)
 
     # find indexes of both the latitude and longitude outputs with the
     # largest probabilities, then determine the corresponding class
@@ -112,103 +113,60 @@ def pose_estimation(image):
     longitudeIdx = longitudeProba[0].argmax()
     latitudeLabel = latitudeLB.classes_[latitudeIdx]
     longitudeLabel = longitudeLB.classes_[longitudeIdx]
-    """
+
     # draw the latitude label and longitude label on the image
     latitudeText = "latitude: {} ({:.2f}%)".format(latitudeLabel,
                                                    latitudeProba[0][latitudeIdx] * 100)
     longitudeText = "longitude: {} ({:.2f}%)".format(longitudeLabel,
                                                      longitudeProba[0][longitudeIdx] * 100)
+    # real_longitudeText = "GT longitude: {}".format(real_longitude)
     cv2.putText(output, latitudeText, (10, 25), cv2.FONT_HERSHEY_SIMPLEX,
                 0.7, (0, 255, 0), 2)
     cv2.putText(output, longitudeText, (10, 55), cv2.FONT_HERSHEY_SIMPLEX,
                 0.7, (0, 255, 0), 2)
+    # cv2.putText(output, str(real_longitudeText), (10, 85), cv2.FONT_HERSHEY_SIMPLEX,
+    #             0.7, (0, 255, 0), 2)
 
     # display the predictions to the terminal as well
     print("[INFO] {}".format(latitudeText))
     print("[INFO] {}".format(longitudeText))
-    """
+
     # show the output image
     # cv2.imshow("Output", output)
     image_compare_name = 'car_door_{}_{}.png'.format(latitudeLabel, longitudeLabel)
     image_compare_path = os.path.join(args["renderings"], image_compare_name)
-    # print(image_compare_path)
+    print(image_compare_path)
     image_compare = cv2.imread(image_compare_path)
-    image_compare = cv2.resize(image_compare, (scale, scale))
-    # print("Compare size:", image_compare.shape)
+    image_compare = imutils.resize(image_compare, width=1000)
+    print(output.shape[0])
+    _ = output.shape[0]
 
-    image_horizontal_concat = np.concatenate((output, image_compare), axis=1)
+    if not _ == 1000:
+        print(output.shape)
+        output = cv2.resize(output, (1000, 1000))
 
-    plt_fig_save(image_horizontal_concat, 
-                image_name[:-4], 
-                latitudeLabel, 
-                longitudeLabel, 
-                gt_latitude, 
-                gt_longitude)
+    print(image_compare.shape[0])
+    _ = image_compare.shape[0]
 
-    cv2.imwrite("/home/hangwu/Mask_RCNN/detected_images/Results_{:4.0f}.png".format(time.time()), image_horizontal_concat)
-    # cv2.imshow("Reality and Prediction", image_horizontal_concat)
-    # # cv2.imshow("Comparison", image_compare)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    if not _ == 1000:
+        print(image_compare.shape)
+        image_compare = cv2.resize(image_compare, (1000, 1000))
 
-    return [image_name[:-4], latitudeLabel, gt_latitude, longitudeLabel, gt_longitude]
-
-def plt_fig_save(img, img_name, pred_latitude, pred_longitude, gt_latitude, gt_longitude):
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    _, ax = plt.subplots(1,1)
-    text_on_image = "Prediction: ({},{})\nGround Truth: ({},{})".format(pred_latitude, 
-                                                                        pred_longitude, gt_latitude, gt_longitude)
-    ax.text(
-        0, 1, text_on_image,
-        size='small',
-        horizontalalignment='left',
-        verticalalignment='top',
-        # family='serif',
-        bbox={'facecolor': 'white', 'alpha':0.5, 'pad':2},
-        color='white',
-        transform=ax.transAxes
-    )
-    ax.axis('off')
-    ax.axes.get_xaxis().set_visible(False)
-    ax.axes.get_yaxis().set_visible(False)
-    ax.set_frame_on(False)
-    plt.imshow(img)
-    plt.savefig("/media/hangwu/TOSHIBA_EXT/Dataset/PoseNet_output/prediction_{}.pdf".format(img_name), 
-                dpi=500,
-                transparent=True,
-                bbox_inches='tight',
-                pad_inches=0)
-
-
-def gt_name(file_name):
-    match = re.match(r'([0-9]+)(_+)([0-9]+)(_+)([0-9]+)(\.png)', file_name, re.I)
-    latitude = int(match.groups()[0])
-    if latitude == 1:
-        latitude_fixed = 27
-    elif latitude == 2:
-        latitude_fixed = 30
-    elif latitude == 3:
-        latitude_fixed = 18
-    elif latitude == 4:
-        latitude_fixed = 28
-    elif latitude == 5:
-        latitude_fixed = 23
-    else:
-        latitude_fixed = latitude
-    longitude = int(match.groups()[4])
-    longitude_fixed = 360 - longitude
-    if longitude_fixed == 360:
-        print("longitude_fixed: ", longitude_fixed)
-        longitude_fixed = 0
-    
-    return latitude_fixed, longitude_fixed
-##########################################################################################
-
-
-# ## Set up logging and pre-trained model paths
-
-# Directory to save logs and trained model
-MODEL_DIR = os.path.join(ROOT_DIR, "logs")
+    try:
+        image_horizontal = np.hstack((output, image_compare))
+        cv2.imwrite("/home/wu/CyMePro/Object_Detection/PoseNet/detected_images/Results_{}_{:4.2f}_360.png".format(image_name, time.time()),
+                    image_horizontal)
+        # cv2.imshow("Comparison", image_horizontal)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+    except:
+        print("axis not match")
+        print(output.shape)
+        print(image_compare.shape)
+        cv2.imshow("Detection", output)
+        cv2.imshow("Comparison", image_compare)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 
 # ## Configuration
@@ -231,8 +189,8 @@ class CarDoorConfig(Config):
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # background + 1 (car_door)
 
-    # All of our training images are 512x512
-    IMAGE_MIN_DIM = 378
+    # All of our training images are 1008x756
+    IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
 
     # You can experiment with this number to see if it improves training
@@ -245,11 +203,10 @@ class CarDoorConfig(Config):
     # use resnet101 or resnet50
     BACKBONE = 'resnet101'
 
-    # To be honest, I haven't taken the time to figure out what these do
+    # big object
     RPN_ANCHOR_SCALES = (8, 16, 32, 64, 128)
     TRAIN_ROIS_PER_IMAGE = 32
-    MAX_GT_INSTANCES = 50
-    PRE_NMS_LIMIT = 6000
+    MAX_GT_INSTANCES = 10
     POST_NMS_ROIS_INFERENCE = 500
     POST_NMS_ROIS_TRAINING = 1000
 
@@ -322,16 +279,13 @@ class CarPartsDataset(utils.Dataset):
 
 
 # # Create the Training and Validation Datasets
-# In[6]:
 
 dataset_val = CarPartsDataset()
-dataset_val.load_data(args["valjson"], args["valdata"])
+dataset_val.load_data(args["val_json"], args["val_data"])
 dataset_val.prepare()
 
 
 # ## Display a few images from the training dataset
-
-# In[7]:
 
 
 class InferenceConfig(CarDoorConfig):
@@ -339,25 +293,19 @@ class InferenceConfig(CarDoorConfig):
     IMAGES_PER_GPU = 1
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
-    DETECTION_MIN_CONFIDENCE = 0.85
+    DETECTION_MIN_CONFIDENCE = 0.90
 
 
 inference_config = InferenceConfig()
-
-# In[8]:
-
 
 # Recreate the model in inference mode
 model = modellib.MaskRCNN(mode="inference",
                           config=inference_config,
                           model_dir=MODEL_DIR)
 
-# In[9]:
-
-
 # Get path to saved weights
 # Either set a specific path or find last trained weights
-# model_path = os.path.join(ROOT_DIR, ".h5 file name here")
+# model_path = os.path.join(MRCNN_DIR, ".h5 file name here")
 
 # model_path = model.find_last()
 model_path = args["model_m"]
@@ -370,23 +318,17 @@ model.load_weights(model_path, by_name=True)
 # # Run Inference
 # Run model.detect()
 
-
 # import skimage
 real_test_dir = args["test"]
 
-# '/home/hangwu/CyMePro/data/dataset/test'
-# '/home/hangwu/CyMePro/data/test'  # '/home/hangwu/CyMePro/data/dataset/test_data'
 image_paths = []
 for filename in os.listdir(real_test_dir):
     if os.path.splitext(filename)[1].lower() in ['.png', '.jpg', '.jpeg', '.JPG']:
         image_paths.append(os.path.join(real_test_dir, filename))
 
-
-# analysis
-M_analysis = []
 for image_path in image_paths:
     img = skimage.io.imread(image_path)
-    # img = imutils.resize(img, width=360)
+    img = imutils.resize(img, width=360)
     if len(img.shape) < 3:
         img = gray2rgb(img)
     img_arr = np.array(img)
@@ -397,7 +339,11 @@ for image_path in image_paths:
     if len(r['rois']):
         # xmin ymin
         print('======================================================')
-        print('{}: '.format(image_name), r['rois'])
+        match = re.match(r'([0-9]+)(_+)([0-9]+)(_+)([0-9]+)', image_name, re.I)
+        first_element = match.groups()[0]
+        if first_element.isdigit():
+            real_longitude = 360 - int(match.groups()[4])
+        print('test image name: {} ==> Bounding box coordinates '.format(image_name), r['rois'])
         xmin = r['rois'][:, 1][0]
         ymin = r['rois'][:, 0][0]
         xmax = r['rois'][:, 3][0]
@@ -409,16 +355,7 @@ for image_path in image_paths:
         print('Center of the Mask: ', center_of_mask)
         print('======================================================')
     # visualize_car_door.display_instances(img, r['rois'], r['masks'], r['class_ids'],
-    #                                      dataset_val.class_names, r['scores'], figsize=(5, 5), image_name=image_name)
+                                        #  dataset_val.class_names, r['scores'], figsize=(5, 5), image_name=image_name)
+    # visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
     mask_for_pose = visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
-    # mask_for_pose = visualize_car_door.mask_highlight(img, r['masks'], xmin, ymin, xmax, ymax)
-
-    analysis = pose_estimation(mask_for_pose)
-    M_analysis.append(analysis)
-
-# write into a csv
-with open("output.csv", 'w') as csvfile:
-    writer = csv.writer(csvfile)
-
-    writer.writerow(["Test_Group","Pred_Latitude", "GT_Latitude","Pred_Longitude","GT_Longitude"])
-    writer.writerows(M_analysis)
+    pose_estimation(mask_for_pose, real_longitude, image_name)

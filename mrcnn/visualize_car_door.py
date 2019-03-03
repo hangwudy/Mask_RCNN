@@ -229,13 +229,13 @@ def mask_to_squares(image, mask, xmin, ymin, xmax, ymax):
     fill the short side to get a square <<<<
     """
 
-    plt.imshow(splash)
-    plt.imshow(new_patch)
-    plt.show()
+    # plt.imshow(splash)
+    # plt.imshow(new_patch)
+    # plt.show()
 
-    splash *= 255
-    splash.astype(np.uint8)
-    cv2.cvtColor(splash, cv2.COLOR_RGB2BGR)
+    # splash *= 255
+    # splash.astype(np.uint8)
+    # splash = cv2.cvtColor(splash, cv2.COLOR_RGB2BGR)
     return new_patch
 
 
