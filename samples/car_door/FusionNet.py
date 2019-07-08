@@ -22,7 +22,7 @@ import cv2
 import re
 
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
-ROOT_DIR = '/home/hangwu/Mask_RCNN'
+ROOT_DIR = '../../'
 sys.path.append(ROOT_DIR)
 from mrcnn.config import Config
 import mrcnn.utils as utils
@@ -34,7 +34,7 @@ import mrcnn.model_new as modellib
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-m", "--model",
-                default="/home/hangwu/Workspace/AttitudeNet/output/attitude_vgg16_random.h5",
+                default="/home/hangwu/Repositories/Model_output/Attitude_CNN/attitude_vgg16_random.h5",
                 # required=True,
                 help="path to trained Attitude CNN model model")
 ap.add_argument("-mm", "--model_m",
@@ -42,11 +42,11 @@ ap.add_argument("-mm", "--model_m",
                 # required=True,
                 help="path to trained Mask R-CNN model model")
 ap.add_argument("-a", "--latitudebin",
-                default="/home/hangwu/Workspace/AttitudeNet/output/latitude_lb.pickle",
+                default="/home/hangwu/Repositories/Model_output/Attitude_CNN/latitude_lb.pickle",
                 # required=True,
                 help="path to output latitude label binarizer")
 ap.add_argument("-o", "--longitudebin",
-                default="/home/hangwu/Workspace/AttitudeNet/output/longitude_lb.pickle",
+                default="/home/hangwu/Repositories/Model_output/Attitude_CNN/longitude_lb.pickle",
                 # required=True,
                 help="path to output longitude label binarizer")
 ap.add_argument("-r", "--renderings",

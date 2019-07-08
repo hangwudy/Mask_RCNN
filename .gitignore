@@ -63,3 +63,6 @@ ENV/
 
 # COCO API
 pycocotools/
+
+# Detection results
+image_outputs/

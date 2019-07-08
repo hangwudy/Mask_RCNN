@@ -28,6 +28,7 @@ ROOT_DIR = os.path.abspath("../")
 sys.path.append(ROOT_DIR)  # To find local version of the library
 from mrcnn import utils
 
+image_outputs = "/home/hangwu/Repositories/Mask_RCNN"
 
 ############################################################
 #  Visualization
@@ -169,7 +170,7 @@ def display_instances(image, boxes, masks, class_ids, class_names,
     ax.imshow(masked_image.astype(np.uint8))
 
     if image_name is not None:
-        plt.savefig('/home/hangwu/Mask_RCNN/detected_images/{}.png'.format(image_name))
+        plt.savefig('{}/{}.png'.format(image_outputs, image_name))
 
     if auto_show:
         plt.show()

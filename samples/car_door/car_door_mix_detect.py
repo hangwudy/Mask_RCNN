@@ -9,7 +9,7 @@ import time
 import skimage.io
 from PIL import Image, ImageDraw
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
-ROOT_DIR = '/home/hangwu/Mask_RCNN'
+ROOT_DIR = '../../'
 sys.path.append(ROOT_DIR) 
 from mrcnn.config import Config
 import mrcnn.utils as utils
@@ -38,19 +38,19 @@ from numpy import random
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-m", "--model", 
-	default="/home/hangwu/Workspace/multi-output-classification/output/pose.model",
+	default="/home/hangwu/Repositories/Model_output/pose_vgg16.model",
 	# required=True,
 	help="path to trained model model")
 ap.add_argument("-a", "--latitudebin", 
-	default="/home/hangwu/Workspace/multi-output-classification/output/latitude_lb.pickle",
+	default="/home/hangwu/Repositories/Model_output/Attitude_CNN/latitude_lb.pickle",
 	# required=True,
 	help="path to output latitude label binarizer")
 ap.add_argument("-o", "--longitudebin", 
-	default="/home/hangwu/Workspace/multi-output-classification/output/longitude_lb.pickle",
+	default="/home/hangwu/Repositories/Model_output/Attitude_CNN/longitude_lb.pickle",
 	# required=True,
 	help="path to output longitude label binarizer")
 ap.add_argument("-i", "--image", 
-	default="/home/hangwu/Workspace/car_door_half",
+	default="/home/hangwu/Repositories/Dataset/car_door_demo",
 	# required=True,
 	help="path to input image directory")
 args = vars(ap.parse_args())
@@ -69,7 +69,7 @@ def inference(image_path):
 	output = imutils.resize(image, width=400)
 
 	# pre-process the image for classification
-	image = cv2.resize(image, (128, 128))
+	image = cv2.resize(image, (224, 224))
 	image = image.astype("float") / 255.0
 	image = img_to_array(image)
 	image = np.expand_dims(image, axis=0)
@@ -105,7 +105,7 @@ def inference(image_path):
 	# show the output image
 	cv2.imshow("Output", output)
 	image_compare_name = 'car_door_{}_{}.png'.format(latitudeLabel, longitudeLabel)
-	image_compare_path = os.path.join('/home/hangwu/Workspace/Car_Door', image_compare_name)
+	image_compare_path = os.path.join('/home/hangwu/Repositories/Dataset/renderings_square', image_compare_name)
 	print(image_compare_path)
 	image_compare = cv2.imread(image_compare_path)
 	image_compare = imutils.resize(image_compare, width=400)
@@ -146,7 +146,7 @@ def pose_estimation(image):
 	output = imutils.resize(image, width=400)
 
 	# pre-process the image for classification
-	image = cv2.resize(image, (128, 128))
+	image = cv2.resize(image, (224, 224))
 	image = image.astype("float") / 255.0
 	image = img_to_array(image)
 	image = np.expand_dims(image, axis=0)
@@ -182,7 +182,7 @@ def pose_estimation(image):
 	# show the output image
 	cv2.imshow("Output", output)
 	image_compare_name = 'car_door_{}_{}.png'.format(latitudeLabel, longitudeLabel)
-	image_compare_path = os.path.join('/home/hangwu/Workspace/Car_Door', image_compare_name)
+	image_compare_path = os.path.join('/home/hangwu/Repositories/Dataset/renderings_square', image_compare_name)
 	print(image_compare_path)
 	image_compare = cv2.imread(image_compare_path)
 	image_compare = imutils.resize(image_compare, width=400)
@@ -376,8 +376,8 @@ class CarPartsDataset(utils.Dataset):
 # dataset_train.prepare()
 
 dataset_val = CarPartsDataset()
-dataset_val.load_data('/home/hangwu/CyMePro/botVision/JSON_generator/output/car_door_val.json',
-                      '/home/hangwu/CyMePro/data/dataset/val_data')
+dataset_val.load_data('/home/hangwu/Repositories/Dataset/annotations/mask_rcnn/car_door_val.json',
+                      '/home/hangwu/Repositories/Dataset/val_data')
 dataset_val.prepare()
 
 
@@ -428,7 +428,7 @@ model = modellib.MaskRCNN(mode="inference",
 # model_path = os.path.join(ROOT_DIR, ".h5 file name here")
 
 # model_path = model.find_last()
-model_path = '/home/hangwu/Mask_RCNN/logs/car_door20181030T1413/mask_rcnn_car_door_0008.h5'
+model_path = '/home/hangwu/Repositories/Model_output/Mask_RCNN/mask_rcnn_car_door_0240.h5'
 
 # Load trained weights (fill in path to trained weights here)
 assert model_path != "", "Provide path to trained weights"
@@ -441,7 +441,7 @@ model.load_weights(model_path, by_name=True)
 
 
 # import skimage
-real_test_dir = '/home/hangwu/CyMePro/data/dataset/test' 
+real_test_dir = '/home/hangwu/Repositories/Dataset/test_data' 
 # '/home/hangwu/CyMePro/data/test'  # '/home/hangwu/CyMePro/data/dataset/test_data'
 image_paths = []
 for filename in os.listdir(real_test_dir):
@@ -469,11 +469,11 @@ for image_path in image_paths:
         print('xmin: {}\nymin: {}\nxmax: {}\nymax: {}'.format(xmin, ymin, xmax, ymax))
         print('Center of the Mask: ', center_of_mask)
         print('======================================================')
-    visualize_car_door.display_instances(img, r['rois'], r['masks'], r['class_ids'],
+        visualize_car_door.display_instances(img, r['rois'], r['masks'], r['class_ids'],
                                 dataset_val.class_names, r['scores'], figsize=(5, 5), image_name=image_name)
-    visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
-    mask_for_pose = visualize_car_door.mask_highlight(img, r['masks'], xmin, ymin, xmax, ymax)
-    pose_estimation(mask_for_pose)  
+        visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
+        mask_for_pose = visualize_car_door.mask_highlight(img, r['masks'], xmin, ymin, xmax, ymax)
+        pose_estimation(mask_for_pose)  
 
 
 
