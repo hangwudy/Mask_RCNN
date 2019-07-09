@@ -15,13 +15,13 @@ from sub_masks_create import create_sub_masks
 from load_image import loadim
 
 # Define which colors match which categories in the images
-car_door_first = 1
-car_door_second = 2
+car_door_first_id = 1
+car_door_second_id = 2
 
 category_ids = {
     1: {
-        '(255, 0, 0)': car_door_first,
-        '(0, 255, 0)': car_door_second,
+        '(255, 0, 0)': car_door_first_id,
+        '(0, 255, 0)': car_door_second_id,
     },
 }
 
