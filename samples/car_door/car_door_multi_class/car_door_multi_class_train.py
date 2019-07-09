@@ -1,21 +1,20 @@
-
 # coding: utf-8
+# @author: Hang Wu
+# Car Door Multi Class Mask Detection
+# @date: 2019.07.09
 
-# # Mask R-CNN For Car Door Detection
-
+# Extension for 2 car door detection
+# Training Network
 
 import os
 import sys
 import json
 import numpy as np
 import time
-from PIL import Image, ImageDraw
-
+import skimage.io
+from PIL import Image
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
-ROOT_DIR = '../../'
-assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist. Did you forget to read the instructions above? ;)'
-
-# Import mrcnn libraries
+ROOT_DIR = '/home/hangwu/Repositories/Mask_RCNN'
 sys.path.append(ROOT_DIR) 
 from mrcnn.config import Config
 import mrcnn.utils as utils
@@ -39,13 +38,12 @@ COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 # ## Configuration
 # Define configurations for training on the car door dataset.
 
+# In[4]:
 
 
 class CarDoorConfig(Config):
     """
     Configuration for training on the car door dataset.
-    Derives from the base Config class and overrides values specific
-    to the car door dataset.
     """
     # Give the configuration a recognizable name
     NAME = "car_door"
@@ -55,10 +53,10 @@ class CarDoorConfig(Config):
     IMAGES_PER_GPU = 1
 
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 1  # background + 1 (car_door)
+    NUM_CLASSES = 1 + 2  # background + 2 car door classes
 
     # All of our training images are 512x512
-    IMAGE_MIN_DIM = 378
+    IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
 
     # You can experiment with this number to see if it improves training
@@ -68,7 +66,7 @@ class CarDoorConfig(Config):
     # on saved models (in the MODEL_DIR), try making this value larger.
     VALIDATION_STEPS = 5
     
-    # Matterport originally used resnet101, alternative resnet50
+    # use resnet101 or resnet50
     BACKBONE = 'resnet101'
 
     # To be honest, I haven't taken the time to figure out what these do
@@ -77,12 +75,15 @@ class CarDoorConfig(Config):
     MAX_GT_INSTANCES = 50 
     POST_NMS_ROIS_INFERENCE = 500 
     POST_NMS_ROIS_TRAINING = 1000 
-    
+
+
 config = CarDoorConfig()
 config.display()
 
 
 # # Define the dataset
+
+# In[5]:
 
 
 class CarPartsDataset(utils.Dataset):
@@ -148,7 +149,8 @@ class CarPartsDataset(utils.Dataset):
                 )
                 
     def load_mask(self, image_id):
-        """ Load instance masks for the given image.
+        """ 
+        Load instance masks for the given image.
         MaskRCNN expects masks in the form of a bitmap [height, width, instances].
         Args:
             image_id: The id of the image to load masks for
@@ -157,44 +159,65 @@ class CarPartsDataset(utils.Dataset):
                 one mask per instance.
             class_ids: a 1D array of class IDs of the instance masks.
         """
+#         print(image_id) ##
+        
         image_info = self.image_info[image_id]
+        
+#         print(image_info.items()) ##
+#         print(image_info['path']) ##
+        mask_name = image_info['path'].split(os.path.sep)[-1][:-4]+'.png' ##
+#         print(mask_name)
+        mask_path = os.path.join('/home/hangwu/CyMePro/data/annotations/trimaps_with_window', mask_name)
+#         print(mask_path)
+        
         annotations = image_info['annotations']
         instance_masks = []
         class_ids = []
         
+        mask_all = []  ##
+        mask_instance = []  ##
+        
         for annotation in annotations:
             class_id = annotation['category_id']
             mask = Image.new('1', (image_info['width'], image_info['height']))
-            mask_draw = ImageDraw.ImageDraw(mask, '1')
-            for segmentation in annotation['segmentation']:
-                mask_draw.polygon(segmentation, fill=1)
+            for _ in annotation['segmentation']:
                 bool_array = np.array(mask) > 0
                 instance_masks.append(bool_array)
                 class_ids.append(class_id)
+                
+                ##
+                instance_masks = skimage.io.imread(mask_path).astype(np.bool)  # #
+                mask_instance.append(instance_masks)
+                ##
 
         mask = np.dstack(instance_masks)
         class_ids = np.array(class_ids, dtype=np.int32)
         
-        return mask, class_ids
+        ##
+        mask_all = np.stack(mask_instance, axis = -1)
+        
+        
+#         print(class_ids)
+#         print('mask origin: ', mask.shape)
+#         print('mask with window: ', mask_with_window.shape)
+        return mask_all, class_ids  # mask, class_ids
 
-'''
+
 # # Create the Training and Validation Datasets
-
-# In[19]:
 
 
 dataset_train = CarPartsDataset()
-dataset_train.load_data('/home/hangwu/CyMePro/botVision/JSON_generator/output/car_door_train.json', '/home/hangwu/CyMePro/data/dataset/train_data')
+dataset_train.load_data('/home/hangwu/CyMePro/botVision/JSON_generator/output/car_door_train.json',
+                        '/home/hangwu/CyMePro/data/dataset/train_data')
 dataset_train.prepare()
 
 dataset_val = CarPartsDataset()
-dataset_val.load_data('/home/hangwu/CyMePro/botVision/JSON_generator/output/car_door_val.json', '/home/hangwu/CyMePro/data/dataset/val_data')
+dataset_val.load_data('/home/hangwu/CyMePro/botVision/JSON_generator/output/car_door_val.json',
+                      '/home/hangwu/CyMePro/data/dataset/val_data')
 dataset_val.prepare()
 
 
 # ## Display a few images from the training dataset
-
-# In[20]:
 
 
 dataset = dataset_train
@@ -207,20 +230,14 @@ for image_id in image_ids:
 
 # # Create the Training Model and Train
 # This code is largely borrowed from the train_shapes.ipynb notebook.
-
-# In[21]:
-
-
 # Create model in training mode
 model = modellib.MaskRCNN(mode="training", config=config,
                           model_dir=MODEL_DIR)
 
 
-# In[22]:
-
-
 # Which weights to start with?
-init_with = "coco"  # imagenet, coco, or last
+# "imagenet", "coco", or "last"
+init_with = "coco"  
 
 if init_with == "imagenet":
     model.load_weights(model.get_imagenet_weights(), by_name=True)
@@ -240,40 +257,34 @@ elif init_with == "last":
 # 
 # Train in two stages:
 # 
-# 1. Only the heads. Here we're freezing all the backbone layers and training only the randomly initialized layers (i.e. the ones that we didn't use pre-trained weights from MS COCO). To train only the head layers, pass layers='heads' to the train() function.
+# 1. Only the heads. Here we're freezing all the backbone layers
+# and training only the randomly initialized layers (i.e. the ones
+# that we didn't use pre-trained weights from MS COCO). To train
+# only the head layers, pass layers='heads' to the train() function.
 # 
-# 2. Fine-tune all layers. For this simple example it's not necessary, but we're including it to show the process. Simply pass layers="all to train all layers.
-# 
-# 
-
-# In[23]:
+# 2. Fine-tune all layers. For this simple example it's not necessary,
+# but we're including it to show the process. Simply pass layers="all
+# to train all layers.
 
 
 # Train the head branches
-# Passing layers="heads" freezes all layers except the head
-# layers. You can also pass a regular expression to select
-# which layers to train by name pattern.
+
 start_train = time.time()
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=4, 
+            epochs=10, 
             layers='heads')
 end_train = time.time()
 minutes = round((end_train - start_train) / 60, 2)
 print(f'Training took {minutes} minutes')
 
 
-# In[24]:
-
-
 # Fine tune all layers
-# Passing layers="all" trains all layers. You can also 
-# pass a regular expression to select which layers to
-# train by name pattern.
+
 start_train = time.time()
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE / 10,
-            epochs=8, 
+            epochs=12, 
             layers="all")
 end_train = time.time()
 minutes = round((end_train - start_train) / 60, 2)
@@ -283,30 +294,22 @@ print(f'Training took {minutes} minutes')
 # # Prepare to run Inference
 # Create a new InferenceConfig, then use it to create a new model.
 
-# In[26]:
-
-
 class InferenceConfig(CarDoorConfig):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
     DETECTION_MIN_CONFIDENCE = 0.85
-    
+
 
 inference_config = InferenceConfig()
 
-
-# In[27]:
 
 
 # Recreate the model in inference mode
 model = modellib.MaskRCNN(mode="inference", 
                           config=inference_config,
                           model_dir=MODEL_DIR)
-
-
-# In[28]:
 
 
 # Get path to saved weights
@@ -323,13 +326,12 @@ model.load_weights(model_path, by_name=True)
 # # Run Inference
 # Run model.detect() on real images.
 # 
-# We get some false positives, and some misses. More training images are likely needed to improve the results.
+# We get some false positives, and some misses.
+# More training images are likely needed to improve the results.
 
-# In[31]:
 
 
-import skimage
-real_test_dir = '/home/hangwu/CyMePro/data/test'#'/home/hangwu/CyMePro/data/dataset/test_data'
+real_test_dir = '/home/hangwu/CyMePro/data/test'  # '/home/hangwu/CyMePro/data/dataset/test_data'
 image_paths = []
 for filename in os.listdir(real_test_dir):
     if os.path.splitext(filename)[1].lower() in ['.png', '.jpg', '.jpeg', '.JPG']:
@@ -341,5 +343,7 @@ for image_path in image_paths:
     results = model.detect([img_arr], verbose=1)
     r = results[0]
     visualize.display_instances(img, r['rois'], r['masks'], r['class_ids'], 
-                                dataset_val.class_names, r['scores'], figsize=(5,5))
-'''
+                                dataset_val.class_names, r['scores'], figsize=(5, 5))
+
+
+
