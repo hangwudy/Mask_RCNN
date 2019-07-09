@@ -38,8 +38,6 @@ COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 # ## Configuration
 # Define configurations for training on the car door dataset.
 
-# In[4]:
-
 
 class CarDoorConfig(Config):
     """
@@ -82,8 +80,6 @@ config.display()
 
 
 # # Define the dataset
-
-# In[5]:
 
 
 class CarPartsDataset(utils.Dataset):
