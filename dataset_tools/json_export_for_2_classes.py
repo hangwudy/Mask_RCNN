@@ -96,10 +96,9 @@ def images_annotations_info(maskpath):
     return images, annotations
 
 if __name__ == '__main__':
-    for keyword in ['test', 'val']:
-        mask_upper_dir = "/home/wu/CyMePro/Dataset/annotations"
-        mask_path = '{}/{}_solid_mask'.format(mask_upper_dir, keyword)
+    for keyword in ['train', 'val']:
+        mask_path = '/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Mask_Annotation/{}_mask'.format(keyword)
         car_door_annotation['images'], car_door_annotation['annotations'] = images_annotations_info(mask_path)
         print(json.dumps(car_door_annotation))
-        with open('/home/wu/CyMePro/Dataset/annotations/mask_rcnn/car_door_{}.json'.format(keyword),'w') as outfile:
+        with open('/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Mask_Annotation/output/car_door_{}.json'.format(keyword),'w') as outfile:
             json.dump(car_door_annotation, outfile)
