@@ -88,7 +88,7 @@ if __name__ == '__main__':
     xml_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/xml"
     image_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/image"
     mask_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/mask"
-    solid_mask_dest_path = ""
+
 
     for fg in fg_list:
         # IMPORTANT: if you want to resize images, don't forget resize in generate_dict
@@ -100,10 +100,11 @@ if __name__ == '__main__':
         bg_path = random.choice(bg_list)
         bg = cv2.imread(bg_path, -1)
 
-        # Car Door Subcategory: 1 or 2
+        # Car Door Subcategory: 1 or 2, IMPORTANT for naming the training data
         cd_subcat = 2
 
         object_bndbox = image_overlay.overlap(bg, fg, bnd_info, image_dest_path, mask_dest_path, cd_subcat)
         xml_generator(object_bndbox, xml_dest_path)
+        
         print(object_bndbox)
         

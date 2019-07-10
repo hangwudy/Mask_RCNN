@@ -44,12 +44,6 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
     print('movement y:',move_y)
     
     for i in range(rows):
-        """
-        ###### for solid mask 1. part >>>>
-        col_min = cols
-        col_max = 0
-        ###### for solid mask 1. part <<<<
-        """
         for j in range(cols):
             if foreground[i,j][3] != 0:
                 # Overlap images
@@ -62,22 +56,10 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
                     object_mask_with_window[i + move_y, j + move_x] = [0, 0, 255]
                 elif car_door_subcat == 2:
                     object_mask_with_window[i + move_y, j + move_x] = [0, 255, 0]
-    """
-                ###### for solid mask 2. part >>>>
-                if col_min > j:
-                    col_min = j
-                if col_max < j:
-                    col_max = j
-        for col in range(col_min, col_max + 1):
-            try:
-                object_mask[i + move_y, col + move_x] = [0, 255, 0]
-            except:
-                break
-                ###### for solid mask 2. part <<<<
-    """
+
     output_image = cv2.cvtColor(background, cv2.COLOR_BGRA2BGR)
 
-    save_name = "{}_cat_{}_id_{:0.0f}".format(bnd_pos['filename'][:-4], car_door_subcat, time.time())
+    save_name = "{}_cat_{}_id_{:0.0f}".format(bnd_pos['filename'][:-4], car_door_subcat, time.time()*1000)
     # Path
     image_output_name = "{}.jpg".format(save_name)
     image_output_dest = os.path.join(image_output_path, image_output_name)
@@ -105,12 +87,6 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
     # Synthetized images
     cv2.imwrite(image_output_dest, output_image)
 
-    """
-    # Solid masks
-    solid_mask_output_name = "{}.png".format(save_name)
-    solid_mask_output_dest = os.path.join(solid_mask_output_path, solid_mask_output_name)
-    cv2.imwrite(solid_mask_output_dest, object_mask)
-    """
     # Masks
     mask_output_name = "{}.png".format(save_name)
     mask_output_dest = os.path.join(mask_output_path, mask_output_name)
