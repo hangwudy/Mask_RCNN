@@ -99,7 +99,11 @@ if __name__ == '__main__':
         fg = cv2.resize(fg, (0,0), fx = img_scale, fy = img_scale, interpolation = cv2.INTER_CUBIC)
         bg_path = random.choice(bg_list)
         bg = cv2.imread(bg_path, -1)
-        object_bndbox = image_overlay.overlap(bg, fg, bnd_info, image_dest_path, mask_dest_path, solid_mask_dest_path)
+
+        # Car Door Subcategory: 1 or 2
+        cd_subcat = 2
+
+        object_bndbox = image_overlay.overlap(bg, fg, bnd_info, image_dest_path, mask_dest_path, cd_subcat)
         xml_generator(object_bndbox, xml_dest_path)
         print(object_bndbox)
         

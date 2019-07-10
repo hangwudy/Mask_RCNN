@@ -8,12 +8,13 @@ import cv2
 import numpy as np
 from numpy import random
 import os
+import time
 # Eigen
 import load_image
 import generate_dict
 
 
-def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path, solid_mask_output_path):
+def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path, car_door_subcat):
     background = cv2.cvtColor(background, cv2.COLOR_BGR2BGRA)
     # print(foreground.shape)
     # print(background.shape)
@@ -22,8 +23,9 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
     rows_b, cols_b = background.shape[:2]
 
     # Mask initialization
-    # solid mask
+    """# solid mask
     object_mask = np.zeros([rows_b, cols_b, 3], np.uint8)
+    """
     # mask with window
     object_mask_with_window = np.zeros([rows_b, cols_b, 3], np.uint8)
 
@@ -42,12 +44,12 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
     print('movement y:',move_y)
     
     for i in range(rows):
-"""
+        """
         ###### for solid mask 1. part >>>>
         col_min = cols
         col_max = 0
         ###### for solid mask 1. part <<<<
-"""
+        """
         for j in range(cols):
             if foreground[i,j][3] != 0:
                 # Overlap images
@@ -55,9 +57,12 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
                     background[i + move_y, j + move_x] = foreground[i,j]
                 except:
                     break
+                if car_door_subcat == 1:
                 # Mask generating (for nomal mask with window)
-                object_mask_with_window[i + move_y, j + move_x] = [0, 255, 0]
-"""
+                    object_mask_with_window[i + move_y, j + move_x] = [0, 0, 255]
+                elif car_door_subcat == 2:
+                    object_mask_with_window[i + move_y, j + move_x] = [0, 255, 0]
+    """
                 ###### for solid mask 2. part >>>>
                 if col_min > j:
                     col_min = j
@@ -69,10 +74,10 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
             except:
                 break
                 ###### for solid mask 2. part <<<<
-"""
+    """
     output_image = cv2.cvtColor(background, cv2.COLOR_BGRA2BGR)
 
-    save_name = bnd_pos['filename'][:-4]
+    save_name = "{}_cat_{}_id_{:0.0f}".format(bnd_pos['filename'][:-4], car_door_subcat, time.time())
     # Path
     image_output_name = "{}.jpg".format(save_name)
     image_output_dest = os.path.join(image_output_path, image_output_name)
