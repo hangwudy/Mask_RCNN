@@ -52,10 +52,8 @@ def create_sub_mask_annotation(sub_mask, is_crowd, image_id, category_id, annota
     """
 
     annotation = {
-        """
-        'segmentation': segmentations,
-        'area': area,
-        """
+        # 'segmentation': segmentations,
+        # 'area': area,
         'iscrowd': is_crowd,
         'image_id': image_id,
         # 'bbox': bbox,

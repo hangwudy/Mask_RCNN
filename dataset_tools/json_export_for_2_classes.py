@@ -97,8 +97,8 @@ def images_annotations_info(maskpath):
 
 if __name__ == '__main__':
     for keyword in ['train', 'val']:
-        mask_path = '/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Mask_Annotation/{}_mask'.format(keyword)
+        mask_path = '/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask_{}'.format(keyword)
         car_door_annotation['images'], car_door_annotation['annotations'] = images_annotations_info(mask_path)
         print(json.dumps(car_door_annotation))
-        with open('/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Mask_Annotation/output/car_door_{}.json'.format(keyword),'w') as outfile:
+        with open('/home/hangwu/Repositories/Dataset/car_door_mix_annotations/json/car_door_{}.json'.format(keyword),'w') as outfile:
             json.dump(car_door_annotation, outfile)

@@ -81,18 +81,20 @@ def xml_generator(bndbox, xml_destination_path):
 if __name__ == '__main__':
 
     # Foreground and background imags
-    fg_list = load_image.loadim('/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/Foreground')
-    bg_list = load_image.loadim('/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/Background','jpg','background')
+    fg_list = load_image.loadim('/home/hangwu/Repositories/Dataset/car_door_2')
+    bg_list = load_image.loadim('/home/hangwu/Downloads/val2017','jpg','0000')
 
     # Output paths
-    xml_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/xml"
-    image_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/image"
-    mask_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/mask"
+    xml_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/xml"
+    image_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_images"
+    mask_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask"
 
+    # Counter
+    progress_show = 1
 
     for fg in fg_list:
         # IMPORTANT: if you want to resize images, don't forget resize in generate_dict
-        img_scale = 0.6
+        img_scale = 0.4
         bnd_info = generate_dict.object_dict(fg, img_scale)
         fg = cv2.imread(fg, -1)
         # resize the car door images
@@ -107,4 +109,9 @@ if __name__ == '__main__':
         xml_generator(object_bndbox, xml_dest_path)
         
         print(object_bndbox)
+        if progress_show % 50 == 0:
+            print("++++++++++++++")
+            print("{:.2f}%".format(progress_show/len(fg_list)*100))
+            progress_show += progress_show
+            print("++++++++++++++")
         

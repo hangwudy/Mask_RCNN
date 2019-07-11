@@ -159,32 +159,32 @@ class CarPartsDataset(utils.Dataset):
         
         image_info = self.image_info[image_id]
         
-#         print(image_info.items()) ##
-#         print(image_info['path']) ##
-        mask_name = image_info['path'].split(os.path.sep)[-1][:-4]+'.png' ##
+#         print(image_info.items())
+#         print(image_info['path'])
+        mask_name = image_info['path'].split(os.path.sep)[-1][:-4]+'.png'
 #         print(mask_name)
-        mask_path = os.path.join('/home/hangwu/CyMePro/data/annotations/trimaps_with_window', mask_name)
+        mask_path = os.path.join('/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask_bw', mask_name)
 #         print(mask_path)
         
         annotations = image_info['annotations']
         instance_masks = []
         class_ids = []
         
-        mask_all = []  ##
-        mask_instance = []  ##
+        mask_all = []
+        mask_instance = []
         
         for annotation in annotations:
             class_id = annotation['category_id']
             mask = Image.new('1', (image_info['width'], image_info['height']))
-            for _ in annotation['segmentation']:
-                bool_array = np.array(mask) > 0
-                instance_masks.append(bool_array)
-                class_ids.append(class_id)
-                
-                ##
-                instance_masks = skimage.io.imread(mask_path).astype(np.bool)  # #
-                mask_instance.append(instance_masks)
-                ##
+            # for _ in annotation['segmentation']:
+            bool_array = np.array(mask) > 0
+            instance_masks.append(bool_array)
+            class_ids.append(class_id)
+            
+            ##
+            instance_masks = skimage.io.imread(mask_path).astype(np.bool)
+            mask_instance.append(instance_masks)
+            ##
 
         mask = np.dstack(instance_masks)
         class_ids = np.array(class_ids, dtype=np.int32)
@@ -203,13 +203,13 @@ class CarPartsDataset(utils.Dataset):
 
 
 dataset_train = CarPartsDataset()
-dataset_train.load_data('/home/hangwu/CyMePro/botVision/JSON_generator/output/car_door_train.json',
-                        '/home/hangwu/CyMePro/data/dataset/train_data')
+dataset_train.load_data('/home/hangwu/Repositories/Dataset/car_door_mix_annotations/json/car_door_train.json',
+                        '/home/hangwu/Repositories/Dataset/car_door_mix_images')
 dataset_train.prepare()
 
 dataset_val = CarPartsDataset()
-dataset_val.load_data('/home/hangwu/CyMePro/botVision/JSON_generator/output/car_door_val.json',
-                      '/home/hangwu/CyMePro/data/dataset/val_data')
+dataset_val.load_data('/home/hangwu/Repositories/Dataset/car_door_mix_annotations/json/car_door_val.json',
+                      '/home/hangwu/Repositories/Dataset/car_door_mix_images')
 dataset_val.prepare()
 
 
@@ -327,7 +327,7 @@ model.load_weights(model_path, by_name=True)
 
 
 
-real_test_dir = '/home/hangwu/CyMePro/data/test'  # '/home/hangwu/CyMePro/data/dataset/test_data'
+real_test_dir = '/home/hangwu/Repositories/Dataset/car_door_mix_images'  # '/home/hangwu/CyMePro/data/dataset/test_data'
 image_paths = []
 for filename in os.listdir(real_test_dir):
     if os.path.splitext(filename)[1].lower() in ['.png', '.jpg', '.jpeg', '.JPG']:

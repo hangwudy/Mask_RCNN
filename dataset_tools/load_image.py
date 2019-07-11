@@ -6,7 +6,7 @@
 import os
 
 
-def loadim(image_path = 'images', ext = 'png', key_word = 'car_door'):
+def loadim(image_path = '', ext = 'png', key_word = 'car_door'):
     image_list = []
     for filename in os.listdir(image_path):
         if filename.endswith(ext) and filename.find(key_word) != -1:
