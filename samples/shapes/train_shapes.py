@@ -283,7 +283,7 @@ print(dataset_train)
 
 
 
-"""
+
 # Load and display random samples
 image_ids = np.random.choice(dataset_train.image_ids, 4)
 for image_id in image_ids:
@@ -445,4 +445,3 @@ for image_id in image_ids:
     
 print("mAP: ", np.mean(APs))
 
-"""

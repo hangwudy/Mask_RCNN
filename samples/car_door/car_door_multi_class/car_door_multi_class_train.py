@@ -68,11 +68,11 @@ class CarDoorConfig(Config):
     BACKBONE = 'resnet101'
 
     # To be honest, I haven't taken the time to figure out what these do
-    RPN_ANCHOR_SCALES = (16, 32, 64, 128, 256) # (8, 16, 32, 64, 128)
+    RPN_ANCHOR_SCALES = (8, 16, 32, 64, 128)
     TRAIN_ROIS_PER_IMAGE = 32
     MAX_GT_INSTANCES = 50 
     POST_NMS_ROIS_INFERENCE = 500 
-    POST_NMS_ROIS_TRAINING = 1000 
+    POST_NMS_ROIS_TRAINING = 500
 
 
 config = CarDoorConfig()
@@ -186,7 +186,7 @@ class CarPartsDataset(utils.Dataset):
             mask_instance.append(instance_masks)
             ##
 
-        mask = np.dstack(instance_masks)
+        # mask = np.dstack(instance_masks)
         class_ids = np.array(class_ids, dtype=np.int32)
         
         ##
@@ -301,7 +301,6 @@ class InferenceConfig(CarDoorConfig):
 inference_config = InferenceConfig()
 
 
-
 # Recreate the model in inference mode
 model = modellib.MaskRCNN(mode="inference", 
                           config=inference_config,
@@ -326,8 +325,8 @@ model.load_weights(model_path, by_name=True)
 # More training images are likely needed to improve the results.
 
 
+real_test_dir = '/home/hangwu/Repositories/Dataset/car_door_mix_images'
 
-real_test_dir = '/home/hangwu/Repositories/Dataset/car_door_mix_images'  # '/home/hangwu/CyMePro/data/dataset/test_data'
 image_paths = []
 for filename in os.listdir(real_test_dir):
     if os.path.splitext(filename)[1].lower() in ['.png', '.jpg', '.jpeg', '.JPG']:
