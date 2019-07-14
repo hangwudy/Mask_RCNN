@@ -1,7 +1,7 @@
 <annotation>
   <folder>image</folder>
-  <filename>car_door_0_350_cat_2_id_1562765152250.jpg</filename>
-  <path>/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/image/car_door_0_350_cat_2_id_1562765152250.jpg</path>
+  <filename>car_door_0_350_cat_2_id_1563110872608.jpg</filename>
+  <path>/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/image/car_door_0_350_cat_2_id_1563110872608.jpg</path>
   <source>
     <database>Unknown</database>
   </source>
@@ -17,10 +17,10 @@
     <truncated>0</truncated>
     <difficult>0</difficult>
     <bndbox>
-      <xmin>527</xmin>
-      <ymin>153</ymin>
-      <xmax>639</xmax>
-      <ymax>476</ymax>
+      <xmin>79</xmin>
+      <ymin>176</ymin>
+      <xmax>153</xmax>
+      <ymax>390</ymax>
     </bndbox>
   </object>
 </annotation>

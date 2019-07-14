@@ -81,15 +81,30 @@ def xml_generator(bndbox, xml_destination_path):
 if __name__ == '__main__':
 
     # Foreground and background imags
-    fg_list = load_image.loadim('/home/hangwu/Repositories/Dataset/car_door_2')
-    bg_list = load_image.loadim('/home/hangwu/Downloads/val2017','jpg','0000')
-
+    fg_path = '/home/hangwu/Repositories/Dataset/car_door_2'
+    bg_path = '/home/hangwu/Downloads/val2017'
+    
     # Output paths
     xml_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/xml"
     image_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_images"
     mask_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask"
-    mask_bw_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask"
+    mask_bw_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask_bw"
 
+    # Car Door Subcategory: 1 or 2, IMPORTANT for naming the training data
+    cd_subcat = 2
+
+    # Test
+    test = True
+    if test:
+        fg_path = '/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/Foreground'
+        bg_path = '/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/Background'
+        xml_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/xml"
+        image_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/image"
+        mask_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/mask"
+        mask_bw_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/mask_bw"
+    
+    fg_list = load_image.loadim(fg_path)
+    bg_list = load_image.loadim(bg_path,'jpg','background')
     # Counter
     progress_show = 1
 
@@ -102,17 +117,13 @@ if __name__ == '__main__':
         fg = cv2.resize(fg, (0,0), fx = img_scale, fy = img_scale, interpolation = cv2.INTER_CUBIC)
         bg_path = random.choice(bg_list)
         bg = cv2.imread(bg_path, -1)
-
-        # Car Door Subcategory: 1 or 2, IMPORTANT for naming the training data
-        cd_subcat = 2
-
-        object_bndbox = image_overlay.overlap(bg, fg, bnd_info, image_dest_path, mask_bw_dest_path, mask_dest_path, cd_subcat)
+        object_bndbox = image_overlay.overlap(bg, fg, bnd_info, image_dest_path, mask_dest_path, mask_bw_dest_path, cd_subcat)
         xml_generator(object_bndbox, xml_dest_path)
         
         print(object_bndbox)
         if progress_show % 50 == 0:
             print("++++++++++++++")
             print("{:.2f}%".format(progress_show/len(fg_list)*100))
-            progress_show += progress_show
+            progress_show += 1
             print("++++++++++++++")
         
