@@ -14,7 +14,7 @@ import load_image
 import generate_dict
 
 
-def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path, car_door_subcat):
+def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path, mask_bw_output_path, car_door_subcat):
     background = cv2.cvtColor(background, cv2.COLOR_BGR2BGRA)
     # print(foreground.shape)
     # print(background.shape)
@@ -28,6 +28,9 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
     """
     # mask with window
     object_mask_with_window = np.zeros([rows_b, cols_b, 3], np.uint8)
+
+    # mask with window in black white
+    object_mask_with_window_bw = np.zeros([rows_b, cols_b], np.uint8)
 
     # Range of x and y
     low_x = bnd_pos['xmin']
@@ -56,6 +59,8 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
                     object_mask_with_window[i + move_y, j + move_x] = [0, 0, 255]
                 elif car_door_subcat == 2:
                     object_mask_with_window[i + move_y, j + move_x] = [0, 255, 0]
+                # Mask in black and white
+                object_mask_with_window_bw[i + move_y, j + move_x] = 1
 
     output_image = cv2.cvtColor(background, cv2.COLOR_BGRA2BGR)
 
@@ -91,6 +96,9 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
     mask_output_name = "{}.png".format(save_name)
     mask_output_dest = os.path.join(mask_output_path, mask_output_name)
     cv2.imwrite(mask_output_dest, object_mask_with_window)
+    # Masks in black and white
+    mask_bw_output_dest = os.path.join(mask_bw_output_path, mask_output_name)
+    cv2.imwrite(mask_bw_output_dest, object_mask_with_window_bw)
     
     # Test
     # cv2.imwrite('images/{}.jpg'.format(save_name), output_image)

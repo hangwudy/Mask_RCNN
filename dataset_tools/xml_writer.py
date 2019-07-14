@@ -88,6 +88,7 @@ if __name__ == '__main__':
     xml_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/xml"
     image_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_images"
     mask_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask"
+    mask_bw_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask"
 
     # Counter
     progress_show = 1
@@ -105,7 +106,7 @@ if __name__ == '__main__':
         # Car Door Subcategory: 1 or 2, IMPORTANT for naming the training data
         cd_subcat = 2
 
-        object_bndbox = image_overlay.overlap(bg, fg, bnd_info, image_dest_path, mask_dest_path, cd_subcat)
+        object_bndbox = image_overlay.overlap(bg, fg, bnd_info, image_dest_path, mask_bw_dest_path, mask_dest_path, cd_subcat)
         xml_generator(object_bndbox, xml_dest_path)
         
         print(object_bndbox)
