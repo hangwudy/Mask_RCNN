@@ -81,20 +81,20 @@ def xml_generator(bndbox, xml_destination_path):
 if __name__ == '__main__':
 
     # Foreground and background imags
-    fg_path = '/home/hangwu/Repositories/Dataset/car_door_2'
+    fg_path = '/home/hangwu/Repositories/Dataset/dataset/car_door_2'
     bg_path = '/home/hangwu/Downloads/val2017'
     
     # Output paths
-    xml_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/xml"
-    image_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_images"
-    mask_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask"
-    mask_bw_dest_path = "/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask_bw"
+    xml_dest_path = "/home/hangwu/Repositories/Dataset/dataset/annotation_all/xml"
+    image_dest_path = "/home/hangwu/Repositories/Dataset/dataset/car_door_all"
+    mask_dest_path = "/home/hangwu/Repositories/Dataset/dataset/annotation_all/mask"
+    mask_bw_dest_path = "/home/hangwu/Repositories/Dataset/dataset/annotation_all/mask_bw"
 
     # Car Door Subcategory: 1 or 2, IMPORTANT for naming the training data
     cd_subcat = 2
 
     # Test
-    test = True
+    test = False
     if test:
         fg_path = '/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/Foreground'
         bg_path = '/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/Background'
@@ -104,26 +104,32 @@ if __name__ == '__main__':
         mask_bw_dest_path = "/home/hangwu/Repositories/Mask_RCNN/dataset_tools/Test_Workspace/Image_Generation/output/mask_bw"
     
     fg_list = load_image.loadim(fg_path)
-    bg_list = load_image.loadim(bg_path,'jpg','background')
+    # print(fg_list[1230:1250])
+    bg_list = load_image.loadim(bg_path,'jpg','0000')
     # Counter
     progress_show = 1
 
-    for fg in fg_list:
+    for fg_p in fg_list:
         # IMPORTANT: if you want to resize images, don't forget resize in generate_dict
-        img_scale = 0.4
-        bnd_info = generate_dict.object_dict(fg, img_scale)
-        fg = cv2.imread(fg, -1)
-        # resize the car door images
-        fg = cv2.resize(fg, (0,0), fx = img_scale, fy = img_scale, interpolation = cv2.INTER_CUBIC)
-        bg_path = random.choice(bg_list)
-        bg = cv2.imread(bg_path, -1)
-        object_bndbox = image_overlay.overlap(bg, fg, bnd_info, image_dest_path, mask_dest_path, mask_bw_dest_path, cd_subcat)
-        xml_generator(object_bndbox, xml_dest_path)
-        
-        print(object_bndbox)
+        img_scale = 0.8
+        try:
+            bnd_info = generate_dict.object_dict(fg_p, img_scale)
+            fg = cv2.imread(fg_p, -1)
+            # resize the car door images
+            fg = cv2.resize(fg, (0,0), fx = img_scale, fy = img_scale, interpolation = cv2.INTER_CUBIC)
+            bg_path = random.choice(bg_list)
+            bg = cv2.imread(bg_path, -1)
+            object_bndbox = image_overlay.overlap(bg, fg, bnd_info, image_dest_path, mask_dest_path, mask_bw_dest_path, cd_subcat)
+            xml_generator(object_bndbox, xml_dest_path)
+        except:
+            print("===========================")
+            print(fg_p)
+            print(bg_path)
+            print("===========================")
+        # print(object_bndbox)
         if progress_show % 50 == 0:
             print("++++++++++++++")
             print("{:.2f}%".format(progress_show/len(fg_list)*100))
-            progress_show += 1
             print("++++++++++++++")
+        progress_show += 1
         

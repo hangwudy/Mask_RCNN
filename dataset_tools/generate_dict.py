@@ -12,7 +12,7 @@ import os
 # Eigen
 import load_image
 
-def object_dict(impath, scale = 0.4):
+def object_dict(impath, scale):
     # initialize the dictionary
     bnd_dict = {'folder': 'FOLDER','filename':'NAME', 'path': 'PATH', 'width': 0, 'height': 0, 'depth': 0,
                 'xmin': 0, 'ymin': 0, 'xmax': 0, 'ymax': 0}
