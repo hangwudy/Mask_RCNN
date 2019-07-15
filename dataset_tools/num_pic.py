@@ -14,9 +14,9 @@ for i in range(46,91):
     im_list = loadim("/home/hangwu/Repositories/Dataset/dataset/car_door_all","jpg",kw)
     print(i, len(im_list))
 
-for i in [50,55,62,69,78,87]:
-    kw = "car_door_{}".format(i)
-    for j in range(1,361):
-        kw_2 = "{}_{}".format(kw,j)
-        if len(loadim("/home/hangwu/Repositories/Dataset/dataset/car_door_all","jpg",kw_2)) == 0:
-            print(i,j)
+# for i in [50,55,62,69,78,87]:
+#     kw = "car_door_{}".format(i)
+#     for j in range(1,361):
+#         kw_2 = "{}_{}".format(kw,j)
+#         if len(loadim("/home/hangwu/Repositories/Dataset/dataset/car_door_all","jpg",kw_2)) == 0:
+#             print(i,j)
