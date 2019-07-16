@@ -42,9 +42,9 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
     move_y = int(random.randint(- low_y, rows_b - high_y, 1))
     # move_y = random.randint(rows_b - high_y -1, rows_b - high_y, 1)
 
-    print('movement x:',move_x)
+    # print('movement x:',move_x)
     # print(high_y)
-    print('movement y:',move_y)
+    # print('movement y:',move_y)
     
     for i in range(rows):
         for j in range(cols):
@@ -85,7 +85,7 @@ def overlap(background, foreground, bnd_pos, image_output_path, mask_output_path
     bnd_pos['xmax'] += move_x
     bnd_pos['ymax'] += move_y
     # test
-    print(bnd_pos)
+    # print(bnd_pos)
 
 
     # Save images

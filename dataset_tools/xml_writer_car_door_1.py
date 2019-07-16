@@ -9,7 +9,6 @@ from xml.dom.minidom import parseString
 import cv2
 from numpy import random
 import os
-import shutil
 
 # Eigen
 import image_overlay
@@ -82,20 +81,17 @@ def xml_generator(bndbox, xml_destination_path):
 if __name__ == '__main__':
 
     # Foreground and background imags
-    fg_path = '/home/hangwu/Repositories/Dataset/dataset/car_door_2'
+    fg_path = '/home/hangwu/Repositories/Dataset/dataset/car_door_1'
     bg_path = '/home/hangwu/Downloads/val2017'
     
     # Output paths
-    xml_dest_path = "/home/hangwu/Repositories/Dataset/dataset/annotation_all/xml"
-    image_dest_path = "/home/hangwu/Repositories/Dataset/dataset/car_door_all"
-    mask_dest_path = "/home/hangwu/Repositories/Dataset/dataset/annotation_all/mask"
-    mask_bw_dest_path = "/home/hangwu/Repositories/Dataset/dataset/annotation_all/mask_bw"
+    xml_dest_path = "/home/hangwu/Repositories/Dataset/dataset/cardoor1/annotation_all/xml"
+    image_dest_path = "/home/hangwu/Repositories/Dataset/dataset/cardoor1/car_door_all"
+    mask_dest_path = "/home/hangwu/Repositories/Dataset/dataset/cardoor1/annotation_all/mask"
+    mask_bw_dest_path = "/home/hangwu/Repositories/Dataset/dataset/cardoor1/annotation_all/mask_bw"
 
     # Car Door Subcategory: 1 or 2, IMPORTANT for naming the training data
-    cd_subcat = 2
-
-    # Ergaenzen images
-    ergaenzen_path = "/home/hangwu/Repositories/Dataset/dataset/ergaenzen"
+    cd_subcat = 1
 
     # Test
     test = False
@@ -115,7 +111,7 @@ if __name__ == '__main__':
 
     for fg_p in fg_list:
         # IMPORTANT: if you want to resize images, don't forget resize in generate_dict
-        img_scale = 0.8
+        img_scale = 0.4
         try:
             bnd_info = generate_dict.object_dict(fg_p, img_scale)
             fg = cv2.imread(fg_p, -1)
@@ -128,7 +124,6 @@ if __name__ == '__main__':
         except:
             print("===========================")
             print(fg_p)
-            shutil.copy2(fg_p, ergaenzen_path)
             print(bg_path)
             print("===========================")
         # print(object_bndbox)
