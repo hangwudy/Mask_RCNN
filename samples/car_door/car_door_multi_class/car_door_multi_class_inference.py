@@ -223,7 +223,7 @@ for image_id in image_ids:
     mask, class_ids = dataset.load_mask(image_id)
     visualize.display_top_masks(image, mask, class_ids, dataset.class_names)
 
-
+"""
 # # Create the Training Model and Train
 # This code is largely borrowed from the train_shapes.ipynb notebook.
 # Create model in training mode
@@ -247,7 +247,7 @@ elif init_with == "coco":
 elif init_with == "last":
     # Load the last model you trained and continue training
     model.load_weights(model.find_last(), by_name=True)
-
+"""
 
 # ## Training
 # 
@@ -262,7 +262,7 @@ elif init_with == "last":
 # but we're including it to show the process. Simply pass layers="all
 # to train all layers.
 
-
+"""
 # Train the head branches
 
 start_train = time.time()
@@ -285,7 +285,7 @@ model.train(dataset_train, dataset_val,
 end_train = time.time()
 minutes = round((end_train - start_train) / 60, 2)
 print(f'Training took {minutes} minutes')
-
+"""
 
 # # Prepare to run Inference
 # Create a new InferenceConfig, then use it to create a new model.
@@ -324,7 +324,7 @@ model.load_weights(model_path, by_name=True)
 # We get some false positives, and some misses.
 # More training images are likely needed to improve the results.
 
-"""
+
 real_test_dir = '/home/hangwu/Repositories/Dataset/car_door_mix_images'
 
 image_paths = []
@@ -339,6 +339,6 @@ for image_path in image_paths:
     r = results[0]
     visualize.display_instances(img, r['rois'], r['masks'], r['class_ids'], 
                                 dataset_val.class_names, r['scores'], figsize=(5, 5))
-"""
+
 
 

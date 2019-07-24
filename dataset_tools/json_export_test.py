@@ -119,9 +119,15 @@ def images_annotations_info(maskpath):
 
 
 if __name__ == '__main__':
-    for keyword in ['train', 'val']:
-        mask_path = '/home/hangwu/Repositories/Dataset/car_door_mix_annotations/mask_{}'.format(keyword)
+    for keyword in ['val']:
+        mask_path = '/home/hangwu/Repositories/Dataset/dataset/car_door_all/split/mask_{}'.format(keyword)
         car_door_annotation['images'], car_door_annotation['annotations'] = images_annotations_info(mask_path)
         print(json.dumps(car_door_annotation))
-        with open('/home/hangwu/Repositories/Dataset/car_door_mix_annotations/json/car_door_test_{}.json'.format(keyword),'w') as outfile:
+        with open('/home/hangwu/Repositories/Dataset/dataset/car_door_all/json/car_door_{}.json'.format(keyword),'w') as outfile:
+            json.dump(car_door_annotation, outfile)
+    for keyword in ['train']:
+        mask_path = '/home/hangwu/Repositories/Dataset/dataset/car_door_all/mask_bw'
+        car_door_annotation['images'], car_door_annotation['annotations'] = images_annotations_info(mask_path)
+        print(json.dumps(car_door_annotation))
+        with open('/home/hangwu/Repositories/Dataset/dataset/car_door_all/json/car_door_{}.json'.format(keyword),'w') as outfile:
             json.dump(car_door_annotation, outfile)
