@@ -12,7 +12,9 @@ import json
 import numpy as np
 import time
 import skimage.io
+from skimage.color import gray2rgb
 from PIL import Image
+import imutils
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
 ROOT_DIR = '/home/hangwu/Repositories/Mask_RCNN'
 sys.path.append(ROOT_DIR) 
@@ -310,7 +312,9 @@ model = modellib.MaskRCNN(mode="inference",
 # Get path to saved weights
 # Either set a specific path or find last trained weights
 # model_path = os.path.join(ROOT_DIR, ".h5 file name here")
-model_path = model.find_last()
+# model_path = model.find_last()
+model_path = "/home/hangwu/Repositories/Mask_RCNN/logs/car_door20190719T0108/mask_rcnn_car_door_0160.h5"
+
 
 # Load trained weights (fill in path to trained weights here)
 assert model_path != "", "Provide path to trained weights"
@@ -325,7 +329,7 @@ model.load_weights(model_path, by_name=True)
 # More training images are likely needed to improve the results.
 
 
-real_test_dir = '/home/hangwu/Repositories/Dataset/car_door_mix_images'
+real_test_dir = '/home/hangwu/Repositories/Dataset/real_car_door/dataset/images'
 
 image_paths = []
 for filename in os.listdir(real_test_dir):
@@ -334,6 +338,9 @@ for filename in os.listdir(real_test_dir):
 
 for image_path in image_paths:
     img = skimage.io.imread(image_path)
+    img = imutils.resize(img, width=360)
+    if len(img.shape) < 3:
+        img = gray2rgb(img)
     img_arr = np.array(img)
     results = model.detect([img_arr], verbose=1)
     r = results[0]

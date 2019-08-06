@@ -22,7 +22,7 @@ import pickle
 import cv2
 
 # Set the MRCNN_DIR variable to the directory of the Mask_RCNN
-MRCNN_DIR = '/home/hangwu/Mask_RCNN'
+MRCNN_DIR = '../../'
 sys.path.append(MRCNN_DIR)
 from mrcnn.config import Config
 import mrcnn.utils as utils
@@ -39,38 +39,43 @@ MODEL_DIR = os.path.join(MRCNN_DIR, "output")
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-ma", "--model_a",
-                default="/home/hangwu/Workspace/AttitudeNet/output//attitude_vgg16.h5",
+                default="/home/hangwu/Repositories/Model_output/Attitude_CNN/attitude_cnn.h5",
                 # required=True,
                 help="path to trained attitude model model")
 ap.add_argument("-mm", "--model_m",
-                default="/media/hangwu/TOSHIBA_EXT/Dataset/weights/mask_rcnn_car_door_0250.h5",
+                default="/home/hangwu/Repositories/Model_output/Mask_RCNN/mask_rcnn_car_door_0250.h5",
                 # required=True,
                 help="path to trained Mask R-CNN model model")
 ap.add_argument("-la", "--latitudebin",
-                default="/media/hangwu/TOSHIBA_EXT/Dataset/weights/latitude_lb.pickle",
+                default="/home/hangwu/Repositories/Model_output/Attitude_CNN/latitude_lb.pickle",
                 # required=True,
                 help="path to output latitude label binarizer")
 ap.add_argument("-lo", "--longitudebin",
-                default="/media/hangwu/TOSHIBA_EXT/Dataset/weights/longitude_lb.pickle",
+                default="/home/hangwu/Repositories/Model_output/Attitude_CNN/longitude_lb.pickle",
                 # required=True,
                 help="path to output longitude label binarizer")
 ap.add_argument("-r", "--renderings",
-                default="/media/hangwu/TOSHIBA_EXT/Dataset/renderings_square",
+                default="/home/hangwu/Repositories/Dataset/renderings_square",
                 # required=True,
                 help="path to input renderings directory")
 ap.add_argument("-vj", "--val_json",
-                default="/media/hangwu/TOSHIBA_EXT/Dataset/annotations/mask_rcnn/car_door_val.json",
+                default="/home/hangwu/Repositories/Dataset/annotations/mask_rcnn/car_door_val.json",
                 # required=True,
                 help="path to validation data json annotation directory")
 ap.add_argument("-vd", "--val_data",
-                default="/media/hangwu/TOSHIBA_EXT/Dataset/val_data",
+                default="/home/hangwu/Repositories/Dataset/val_data",
                 # required=True,
                 help="path to validation data directory")
 ap.add_argument("-test", "--test",
                 # default="/media/hangwu/TOSHIBA_EXT/Dataset/test_data",
-                default="/media/hangwu/TOSHIBA_EXT/Dataset/images_from_robot/dataset/images",
+                default="/home/hangwu/Repositories/Dataset/real_car_door/dataset/images",
                 # required=True,
                 help="path to test dataset directory")
+ap.add_argument("-codebook", "--codebook",
+                # default="/media/hangwu/TOSHIBA_EXT/Dataset/test_data",
+                default="/home/hangwu/Repositories/AIBox/annotations/codebook/codebook.json",
+                # required=True,
+                help="path to code book directory")
 args = vars(ap.parse_args())
 
 # load the trained convolutional neural network from disk, followed
@@ -91,7 +96,65 @@ def loadim(image_path='Car_Door', ext='png', key_word='car_door'):
     return image_list
 
 
-def pose_estimation(image, real_longitude, image_name):
+
+# Pose Estimation
+
+# focal length (in terms of pixel) predefinition:
+fx_t = 750      # [pixels]
+fy_t = 735      # [pixels]
+fx_r = 2943.6   # [pixels]
+fy_r = 2935.5   # [pixels]
+z_r = 1500      # [mm]
+
+
+def get_diagonal_len(pitch, jaw, code_book):
+    """get the diagonal length of the bounding box through Codebook
+    """
+    with open(code_book) as cb:
+        json_data = json.load(cb)
+        # Codebook format: {"<latitude_1>": {"<longitude_1>": [<width_1>, <height_1>, <diagonal_length_1>]}}
+        diagonal_length = json_data[pitch][jaw]
+    return diagonal_length
+
+
+def f_diagonal_calculation(d, w, h, f_x, f_y):
+    """d represents the diagonal length of the bounding box,
+    w represents the width, and h represents the height.
+    """
+    f_diagonal = d / np.sqrt(np.power(w/f_x, 2) + np.power(h/f_y, 2))
+    return f_diagonal
+
+
+def distance_calculation(bbox_t,fx_t,fy_t,pitch,jaw,fx_r,fy_r,z_r):
+    """d represents the diagonal length of the bounding box,
+    w represents the width, and h represents the height.
+    """
+    # Unity virtual camera
+    # get bbox size
+    len_diagonal = get_diagonal_len(pitch, jaw, args["codebook"])
+    # width
+    w_r = len_diagonal[0]
+    # height
+    h_r = len_diagonal[1]
+    # diagonal
+    d_r = len_diagonal[2]
+    # f_diagonal calculation
+    f_diagonal_r = f_diagonal_calculation(d_r, w_r, h_r, fx_r, fy_r)
+
+    # real camera
+    w_t = bbox_t[0]
+    h_t = bbox_t[1]
+    d_t = bbox_t[2]
+    f_diagonal_t = f_diagonal_calculation(d_t, w_t, h_t, fx_t, fy_t)
+
+    # Distance Calculation
+    distance_z = z_r * f_diagonal_t / f_diagonal_r * d_r /d_t
+    print("==============================================")
+    print("estimated distance: {}".format(distance_z))
+    print("==============================================")
+    return distance_z
+
+def pose_estimation(image, real_longitude, image_name, bbox_info):
     output = imutils.resize(image, width=1000)
     # cv2.imwrite(
     #     "/home/wu/CyMePro/Object_Detection/PoseNet/new_training_set/Results_{}_{}.png".format(image_name, time.time()),
@@ -154,8 +217,10 @@ def pose_estimation(image, real_longitude, image_name):
 
     try:
         image_horizontal = np.hstack((output, image_compare))
-        cv2.imwrite("/home/wu/CyMePro/Object_Detection/PoseNet/detected_images/Results_{}_{:4.2f}_360.png".format(image_name, time.time()),
+        cv2.imwrite("/home/hangwu/Repositories/Dataset/tmp/Results_{}_{:4.2f}.png".format(image_name, time.time()),
                     image_horizontal)
+        
+        
         # cv2.imshow("Comparison", image_horizontal)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
@@ -163,10 +228,15 @@ def pose_estimation(image, real_longitude, image_name):
         print("axis not match")
         print(output.shape)
         print(image_compare.shape)
-        cv2.imshow("Detection", output)
-        cv2.imshow("Comparison", image_compare)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("Detection", output)
+        # cv2.imshow("Comparison", image_compare)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+    try:
+        # Distance Computing
+        distance_calculation(bbox_info,fx_t,fy_t,str(latitudeLabel),str(longitudeLabel),fx_r,fy_r,z_r)
+    except:
+        print("distance calculation failed!")
 
 
 # ## Configuration
@@ -328,7 +398,7 @@ for filename in os.listdir(real_test_dir):
 
 for image_path in image_paths:
     img = skimage.io.imread(image_path)
-    img = imutils.resize(img, width=360)
+    # img = imutils.resize(img, width=360)
     if len(img.shape) < 3:
         img = gray2rgb(img)
     img_arr = np.array(img)
@@ -351,11 +421,30 @@ for image_path in image_paths:
         xbar = (xmin + xmax) / 2
         ybar = (ymin + ymax) / 2
         center_of_mask = [xbar, ybar]
+
+        # Distance Calculation
+        bbox_width = xmax - xmin
+        bbox_height = ymax - ymin
+        bbox_diagonal = np.sqrt(np.power(bbox_width, 2) + np.power(bbox_height, 2))
+        # detected bounding box size
+        bbox_t = [bbox_width, bbox_height, bbox_diagonal]
+
+        image_center_x = img.shape[1]/2
+        image_center_y = img.shape[0]/2
+        center_of_image = [image_center_x, image_center_y]
+        print('Center of the image: ', center_of_image)
+        # "a" length
+        pixel_delta_u = image_center_x - xbar
+        # "b" length
+        pixel_delta_v = image_center_y - ybar
+
+        print("a: {} pixel; b: {} pixel.".format(pixel_delta_u, pixel_delta_v))
+
         print('xmin: {}\nymin: {}\nxmax: {}\nymax: {}'.format(xmin, ymin, xmax, ymax))
         print('Center of the Mask: ', center_of_mask)
         print('======================================================')
-    # visualize_car_door.display_instances(img, r['rois'], r['masks'], r['class_ids'],
-                                        #  dataset_val.class_names, r['scores'], figsize=(5, 5), image_name=image_name)
-    # visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
+    visualize_car_door.display_instances(img, r['rois'], r['masks'], r['class_ids'],
+                                         dataset_val.class_names, r['scores'], figsize=(5, 5), image_name=image_name)
+    visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
     mask_for_pose = visualize_car_door.mask_to_squares(img, r['masks'], xmin, ymin, xmax, ymax)
-    pose_estimation(mask_for_pose, real_longitude, image_name)
+    pose_estimation(mask_for_pose, real_longitude, image_name, bbox_t)
